@@ -1,0 +1,68 @@
+Cliente
+- ID Cliente - Primaria
+- Nome
+- CPF - Unico
+- Email - Unico
+- Senha
+- Telefone - Unico
+- Endereço
+- Data Nascimento
+- Data de cadastro
+
+Produtos
+- ID Produto - Primaria
+- Nome
+- Descrição
+- ID Categoria - Estrangeiro da Tabela Categorias
+- Preço
+- Estoque
+
+Categorias
+- ID Categoria - Primaria
+- Nome Categoria - Unico
+
+Vendas
+- ID Venda - Primaria
+- ID Cliente - Estrengeiro da Tabela Clientes
+- Data Venda
+- Total Venda
+- Metodo de Pagamento
+
+Itens Venda
+- ID Item Venda - Primaria
+- ID Venda - Estrangeiro da Tabela Vendas
+- ID Produto - Estrangeiro da Tabela Produtos
+- Quantidade
+- Preco Unitario Venda
+
+Administrador
+- ID ADM - Primaria
+- Nome
+- Email - Unico
+- Senha
+- CPF - Unico
+- Telefone - Unico
+- Endereço
+- Data Nascimento
+- Data de cadastro
+
+Fornecedor
+- ID Fornecedor - Primaria
+- Nome
+- CNPJ - Unico
+- Cidade 
+- Telefone - Unico
+- Email - Unico
+
+Pedidos Compra
+- ID Compra - Primaria
+- Data da Compra
+- ID Fornecedor - Estrangeiro da Tabela Fornecedor
+- Status Pedido
+
+Itens Compra
+- ID Items Compra - Primaria
+- ID Compra - Estrangeiro da Tabela Compra
+- ID Produto - Estrangeiro da Tabela Produtos (Eu acho)
+- Quantidade 
+- Preco Custo Unitario

@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model categorias {
+  id_categoria   Int        @id @default(autoincrement())
+  nome_categoria String     @unique(map: "nome_categoria_unico") @db.VarChar(50)
+  produtos       produtos[]
+}
+
+model clientes {
+  id_cliente      Int       @id @default(autoincrement())
+  nome            String    @db.VarChar(100)
+  cpf             String    @unique(map: "cpf_unico") @db.VarChar(14)
+  email           String?   @unique(map: "email_unico") @db.VarChar(100)
+  senha           String    @db.VarChar(255)
+  telefone        String?   @unique(map: "telefone_cliente_unico") @db.VarChar(20)
+  endereco        String?   @db.VarChar(100)
+  data_nascimento DateTime? @db.Date
+  data_cadastro   DateTime? @default(now()) @db.DateTime(0)
+  vendas          vendas[]
+}
+
+model fornecedores {
+  id_fornecedor  Int              @id @default(autoincrement())
+  nome           String           @db.VarChar(100)
+  cnpj           String           @unique(map: "cnpj_unico") @db.VarChar(18)
+  cidade         String?          @db.VarChar(100)
+  telefone       String?          @unique(map: "telefone_fornecedor_unico") @db.VarChar(20)
+  email          String?          @unique(map: "email_fornecedor_unico") @db.VarChar(100)
+  pedidos_compra pedidos_compra[]
+}
+
+model itens_pedido {
+  id_item_pedido       Int            @id @default(autoincrement())
+  id_pedido            Int
+  id_produto           Int
+  quantidade           Int
+  preco_custo_unitario Decimal        @db.Decimal(10, 2)
+  pedidos_compra       pedidos_compra @relation(fields: [id_pedido], references: [id_pedido], onDelete: NoAction, onUpdate: NoAction, map: "itens_pedido_ibfk_1")
+  produtos             produtos       @relation(fields: [id_produto], references: [id_produto], onDelete: NoAction, onUpdate: NoAction, map: "itens_pedido_ibfk_2")
+
+  @@index([id_pedido], map: "id_pedido")
+  @@index([id_produto], map: "id_produto")
+}
+
+model itens_venda {
+  id_item_venda        Int      @id @default(autoincrement())
+  id_venda             Int
+  id_produto           Int
+  quantidade           Int
+  preco_unitario_venda Decimal  @db.Decimal(10, 2)
+  vendas               vendas   @relation(fields: [id_venda], references: [id_venda], onDelete: NoAction, onUpdate: NoAction, map: "itens_venda_ibfk_1")
+  produtos             produtos @relation(fields: [id_produto], references: [id_produto], onDelete: NoAction, onUpdate: NoAction, map: "itens_venda_ibfk_2")
+
+  @@index([id_produto], map: "id_produto")
+  @@index([id_venda], map: "id_venda")
+}
+
+model pedidos_compra {
+  id_pedido     Int            @id @default(autoincrement())
+  data_pedido   DateTime       @default(now()) @db.DateTime(0)
+  id_fornecedor Int
+  status_pedido String         @default("Pendente") @db.VarChar(30)
+  itens_pedido  itens_pedido[]
+  fornecedores  fornecedores   @relation(fields: [id_fornecedor], references: [id_fornecedor], onDelete: NoAction, onUpdate: NoAction, map: "pedidos_compra_ibfk_1")
+
+  @@index([id_fornecedor], map: "id_fornecedor")
+}
+
+model produtos {
+  id_produto   Int            @id @default(autoincrement())
+  nome         String         @db.VarChar(100)
+  descricao    String?        @db.Text
+  id_categoria Int
+  preco_venda  Decimal        @db.Decimal(10, 2)
+  estoque      Int            @default(0)
+  imagem       String?        @db.VarChar(255)
+  itens_pedido itens_pedido[]
+  itens_venda  itens_venda[]
+  categorias   categorias     @relation(fields: [id_categoria], references: [id_categoria], onDelete: NoAction, onUpdate: NoAction, map: "produtos_ibfk_1")
+
+  @@index([id_categoria], map: "id_categoria")
+}
+
+model vendas {
+  id_venda         Int           @id @default(autoincrement())
+  id_cliente       Int?
+  data_venda       DateTime      @default(now()) @db.DateTime(0)
+  total_venda      Decimal       @db.Decimal(10, 2)
+  metodo_pagamento String?       @db.VarChar(30)
+  itens_venda      itens_venda[]
+  clientes         clientes?     @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "vendas_ibfk_1")
+
+  @@index([id_cliente], map: "id_cliente")
+}
+
+model administradores {
+  id_adm          Int       @id @default(autoincrement())
+  nome            String    @db.VarChar(100)
+  email           String    @unique(map: "email_adm_unico") @db.VarChar(100)
+  senha           String    @db.VarChar(255)
+  cpf             String    @unique(map: "cpf_adm_unico") @db.VarChar(14)
+  telefone        String?   @unique(map: "telefone_adm_unico") @db.VarChar(20)
+  endereco        String?   @db.VarChar(100)
+  data_nascimento DateTime? @db.Date
+  data_cadastro   DateTime? @default(now()) @db.DateTime(0)
+}
