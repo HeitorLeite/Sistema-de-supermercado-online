@@ -1,5 +1,7 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
+import cors from "cors";
+import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -7,6 +9,8 @@ const PORT = 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(cors());
 
 //CADASTRO E EDIÇÃO DE INFORMAÇÕES DO CLIENTE
 
@@ -35,6 +39,60 @@ app.post("/cadastro", async (req, res) => {
     });
   }
 });
+
+app.post("/login", async (req, res) => {
+  try {
+    const { email, senha } = req.body;
+
+    const loginCliente = await prisma.clientes.findUnique({
+      where: {
+        email: String(email),
+      },
+    });
+    if (!loginCliente) {
+      return res.status(404).json({ erro: "Cliente não encontrado." });
+    }
+
+    if (loginCliente.senha !== String(senha)) {
+      return res.status(401).json({ erro: "Senha incorreta." });
+    }
+
+    const token = jwt.sign(
+      {
+        id: loginCliente.id_cliente,
+        email: loginCliente.email,
+      },
+      process.env.JWT_SECRET || "sua_chave_secreta",
+      { expiresIn: "1d" }
+    );
+
+    const { senha: _, ...clienteSemSenha } = loginCliente;
+
+    res.status(200).json({ cliente: clienteSemSenha, token: token });
+  } catch (error) {
+    console.error("Erro ao efetuar login:", error);
+    res.status(500).json({
+      erro: "Erro ao efetuar login",
+      message: error.message,
+    });
+  }
+});
+
+function autenticarToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) return res.status(401).json({ erro: "Acesso negado." });
+
+  try {
+    const segredo = process.env.JWT_SECRET || "sua_chave_secreta";
+    const usuario = jwt.verify(token, segredo);
+    req.usuario = usuario;
+    next();
+  } catch (error) {
+    res.status(403).json({ erro: "Token inválido." });
+  }
+}
 
 app.get("/cliente/:id_cliente", async (req, res) => {
   try {
@@ -118,6 +176,20 @@ app.post("/categorias", async (req, res) => {
   }
 });
 
+app.get("/categorias", async (req, res) => {
+  try {
+    const categorias = await prisma.categorias.findMany();
+
+    res.json(categorias);
+  } catch (error) {
+    console.error("Erro ao mostrar categorias:", error);
+    res.status(500).json({
+      erro: "Erro interno ao mostrar categorias",
+      message: error.message,
+    });
+  }
+});
+
 //Registro e procura de produto
 
 app.post("/produtos", async (req, res) => {
@@ -146,6 +218,24 @@ app.post("/produtos", async (req, res) => {
   }
 });
 
+app.get("/produtos", async (req, res) => {
+  try {
+    const todosProdutos = await prisma.produtos.findMany({
+      include: {
+        categoria: true,
+      },
+    });
+
+    res.status(200).json(todosProdutos);
+  } catch (error) {
+    console.error("Erro ao buscar produtos:", error);
+    res.status(500).json({
+      erro: "Erro interno ao buscar produtos",
+      message: error.message,
+    });
+  }
+});
+
 app.get("/produtos/:id_produto", async (req, res) => {
   try {
     const { id_produto } = req.params;
@@ -155,6 +245,9 @@ app.get("/produtos/:id_produto", async (req, res) => {
     const consultarProduto = await prisma.produtos.findUnique({
       where: {
         id_produto: produtoId,
+      },
+      include: {
+        categoria: true,
       },
     });
 
@@ -167,6 +260,46 @@ app.get("/produtos/:id_produto", async (req, res) => {
     console.error("Erro ao procurar produto:", error);
     res.status(500).json({
       erro: "Erro interno ao procurar produto",
+      message: error.message,
+    });
+  }
+});
+
+app.put("/produtos/:id_produto", async (req, res) => {
+  try {
+    const { id_produto } = req.params;
+
+    const {
+      nome,
+      descricao,
+      id_categoria,
+      preco_venda,
+      estoque,
+      imagem,
+      promocao,
+    } = req.body;
+
+    const produtoId = parseInt(id_produto);
+
+    const atualizarInfoProduto = await prisma.produtos.update({
+      where: {
+        id_produto: produtoId,
+      },
+      data: {
+        nome: nome,
+        descricao: descricao,
+        id_categoria: id_categoria,
+        preco_venda: preco_venda,
+        estoque: estoque,
+        imagem: imagem,
+        promocao: promocao,
+      },
+    });
+    res.status(201).json({ atualizarInfoProduto });
+  } catch (error) {
+    console.error("Erro ao atualizar informações do produto:", error);
+    res.status(500).json({
+      erro: "Erro interno ao atualizar informações do produto",
       message: error.message,
     });
   }

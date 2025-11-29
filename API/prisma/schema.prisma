@@ -81,9 +81,11 @@ model produtos {
   preco_venda  Decimal        @db.Decimal(10, 2)
   estoque      Int            @default(0)
   imagem       String?        @db.VarChar(255)
+  promocao     Boolean        @default(false)
   itens_pedido itens_pedido[]
   itens_venda  itens_venda[]
-  categorias   categorias     @relation(fields: [id_categoria], references: [id_categoria], onDelete: NoAction, onUpdate: NoAction, map: "produtos_ibfk_1")
+  categoria   categorias @relation(fields: [id_categoria], references: [id_categoria], onDelete: NoAction, onUpdate: NoAction, map: "produtos_ibfk_1")
+
 
   @@index([id_categoria], map: "id_categoria")
 }

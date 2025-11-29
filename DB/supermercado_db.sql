@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS Produtos (
     id_categoria INT NOT NULL,                
     preco_venda DECIMAL(10, 2) NOT NULL, 
     estoque INT NOT NULL DEFAULT 0,      
-    imagem VARCHAR(255) NULL, -- <<< COLUNA ADICIONADA
+    imagem VARCHAR(255) NULL,
+    promocao BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id_produto),
     FOREIGN KEY (id_categoria) REFERENCES Categorias(id_categoria)
 );
