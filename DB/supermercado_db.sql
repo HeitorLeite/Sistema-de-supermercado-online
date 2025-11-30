@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS Clientes (
     email VARCHAR(100),
     senha VARCHAR(255) NOT NULL,
     telefone VARCHAR(20),
-    endereço VARCHAR(100),
+    endereco VARCHAR(100),
     data_nascimento DATE,
     data_cadastro DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id_cliente),
@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS Vendas (
     data_venda DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     total_venda DECIMAL(10, 2) NOT NULL,
     metodo_pagamento VARCHAR(30),
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDENTE',
     PRIMARY KEY (id_venda),
     FOREIGN KEY (id_cliente) REFERENCES Clientes(id_cliente)
 );
@@ -97,7 +98,7 @@ CREATE TABLE IF NOT EXISTS Administradores (
     id_adm INT NOT NULL AUTO_INCREMENT,
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL,
-    senha VARCHAR(255) NOT NULL, -- <<< COLUNA ADICIONADA
+    senha VARCHAR(255) NOT NULL,
     cpf VARCHAR(14) NOT NULL,
     telefone VARCHAR(20),
     endereco VARCHAR(100),
@@ -107,4 +108,12 @@ CREATE TABLE IF NOT EXISTS Administradores (
     UNIQUE KEY email_adm_unico (email),
     UNIQUE KEY cpf_adm_unico (cpf),
     UNIQUE KEY telefone_adm_unico (telefone)
+);
+
+CREATE TABLE IF NOT EXISTS Tarefas (
+    id_tarefa INT NOT NULL AUTO_INCREMENT,
+    descricao VARCHAR(255) NOT NULL,
+    concluida BOOLEAN NOT NULL DEFAULT FALSE,
+    data_criacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_tarefa)
 );
