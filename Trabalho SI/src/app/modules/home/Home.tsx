@@ -2,11 +2,18 @@ import "./Home.scss";
 import banner from "../../../assets/img/banner.png";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle, AlertCircle, X, Info } from "lucide-react"; // Novos ícones
+import { 
+  CheckCircle, 
+  AlertCircle, 
+  X, 
+  Info, 
+  ChevronLeft, 
+  ChevronRight, 
+  ShoppingCart 
+} from "lucide-react"; 
 import api from "../../../services/api.ts";
 import { useCart } from "../../context/CartContext";
 
-// Importação das imagens das categorias
 import hort from "../../../assets/img/hortifruit.png";
 import carnes from "../../../assets/img/carnes.png";
 import padaria from "../../../assets/img/padaria.png";
@@ -52,8 +59,7 @@ const categoriaImagens: Record<string, string> = {
   Limpeza: limpeza,
 };
 
-// --- COMPONENTE DE NOTIFICAÇÃO (TOAST) ---
-const Notification = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning', onClose: () => void }) => {
+const Notification = ({ message, type }: { message: string, type: 'success' | 'error' | 'warning' }) => {
   const bgColors = {
     success: 'bg-green-500',
     error: 'bg-red-500',
@@ -77,19 +83,11 @@ const Notification = ({ message, type, onClose }: { message: string, type: 'succ
       <div className="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg bg-white/20">
         {icons[type]}
       </div>
-      <div className="ml-3 text-sm font-semibold pr-4">{message}</div>
-      <button 
-        type="button" 
-        className="ml-auto -mx-1.5 -my-1.5 bg-transparent text-white rounded-lg p-1.5 hover:bg-white/20 inline-flex h-8 w-8" 
-        onClick={onClose}
-      >
-        <X className="w-4 h-4" />
-      </button>
+      <div className="ml-3 text-sm font-semibold pr-2">{message}</div>
     </div>
   );
 };
 
-// --- CONTROLE DE QUANTIDADE ---
 const QuantityControl = ({ 
   product, 
   addToCart, 
@@ -123,35 +121,44 @@ const QuantityControl = ({
   };
 
   return (
-    <div className="flex items-center space-x-2 p-1 border border-blue-200 rounded-full bg-blue-50 w-full justify-between mt-auto">
-      <button 
-        onClick={handleDecrement}
-        className="bg-white border border-blue-500 text-blue-500 rounded-full h-7 w-7 flex items-center justify-center hover:bg-blue-100 transition text-xl font-bold p-0 leading-none shadow-sm"
-      >
-        −
-      </button>
-      <span className="text-sm font-bold text-center text-gray-700 mx-1">{quantity}</span>
-      <button 
-        onClick={handleIncrement}
-        className={`rounded-full h-7 w-7 flex items-center justify-center transition text-xl font-bold p-0 leading-none shadow-sm ${quantity >= product.estoque ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-      >
-        +
-      </button>
+    <div className="flex flex-col w-full gap-2 mt-auto">
+      <div className="flex items-center justify-between p-1.5 border border-gray-200 rounded-lg bg-gray-50">
+        <button 
+          onClick={handleDecrement}
+          className="bg-white border border-gray-300 text-gray-200 rounded-md h-7 w-7 flex items-center justify-center hover:bg-gray-100 transition font-bold shadow-sm"
+        >
+          -
+        </button>
+        <span className="text-sm font-bold text-gray-800">{quantity}</span>
+        <button 
+          onClick={handleIncrement}
+          className={`rounded-md h-7 w-7 flex items-center justify-center transition font-bold shadow-sm ${
+            quantity >= product.estoque 
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          +
+        </button>
+      </div>
+
       <button
         onClick={handleAddToCart}
         disabled={product.estoque <= 0}
-        className={`rounded-full h-8 w-8 flex items-center justify-center transition shadow-md ml-2 flex-shrink-0 ${product.estoque <= 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-        title="Adicionar à Sacola"
+        className={`
+          w-full py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition shadow-sm
+          ${product.estoque <= 0 
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+            : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-green-200'}
+        `}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
+        <ShoppingCart size={16} />
+        Adicionar
       </button>
     </div>
   );
 };
 
-// --- PÁGINA HOME ---
 export default function Home() {
   const navigate = useNavigate();
   const { addToCart } = useCart();
@@ -162,7 +169,6 @@ export default function Home() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loadingCategorias, setLoadingCategorias] = useState(true);
   
-  // Estado para Notificações
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'warning') => {
@@ -197,7 +203,6 @@ export default function Home() {
 
         setCategorias(resCat.data);
 
-        // Filtra apenas produtos em promoção
         const produtos: ProdutoAPI[] = resProd.data;
         const promosAtivas = produtos.filter((p) => !!p.promocao);
         setPromos(promosAtivas);
@@ -217,17 +222,14 @@ export default function Home() {
   return (
     <div className="bg-gray-50 min-h-screen pb-12 relative">
       
-      {/* Toast Notification */}
       {notification && (
         <Notification 
           message={notification.message} 
           type={notification.type} 
-          onClose={() => setNotification(null)} 
         />
       )}
 
-      {/* --- BANNER --- */}
-      <div className="w-full relative shadow-lg">
+      <div className="w-full relative shadow-lg -mt-4">
         <img
           src={banner}
           alt="Ofertas Frescas"
@@ -240,7 +242,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* --- PROMOÇÕES --- */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
         <div className="text-center mb-10">
           <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-green-500 mb-2">
@@ -265,12 +266,10 @@ export default function Home() {
                 key={product.id_produto} 
                 className="bg-white rounded-xl shadow-lg p-4 transition duration-300 transform hover:scale-[1.02] flex flex-col border border-gray-100 hover:border-blue-300 relative group"
               >
-                {/* Tag de Desconto */}
                 <div className="absolute top-0 right-0 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-bl-lg z-10 shadow-md">
                   OFERTA
                 </div>
 
-                {/* Esgotado Overlay */}
                 {product.estoque <= 0 && (
                   <div className="absolute inset-0 bg-white/60 z-20 flex items-center justify-center rounded-xl backdrop-blur-[1px]">
                     <span className="bg-red-500 text-white font-bold px-3 py-1 rounded-full text-sm shadow-md">ESGOTADO</span>
@@ -308,13 +307,11 @@ export default function Home() {
                     <p className="text-xl font-extrabold text-green-600">
                       R$ {Number(product.preco_venda).toFixed(2)}
                     </p>
-                    {/* Preço "de" fictício para efeito visual de promoção */}
                     <p className="text-xs text-red-400 line-through">
                       R$ {(Number(product.preco_venda) * 1.2).toFixed(2)}
                     </p>
                   </div>
                   
-                  {/* Controle de Quantidade */}
                   <QuantityControl 
                     product={product} 
                     addToCart={addToCart} 
@@ -331,18 +328,25 @@ export default function Home() {
         )}
       </div>
 
-      {/* --- CATEGORIAS --- */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 mb-10">
         <div className="flex items-center justify-between mb-6 px-2">
           <h2 className="text-3xl font-bold text-gray-800 border-l-4 border-blue-600 pl-4">
             Categorias
           </h2>
           <div className="flex gap-2">
-            <button onClick={scrollLeft} className="p-2 rounded-full bg-white shadow hover:bg-gray-100 text-blue-600 transition">
-              ◀
+            <button 
+              onClick={scrollLeft} 
+              className="p-2 text-blue-600 hover:text-blue-800 transition transform hover:scale-110 active:scale-95"
+              aria-label="Scroll Esquerda"
+            >
+              <ChevronLeft size={32} />
             </button>
-            <button onClick={scrollRight} className="p-2 rounded-full bg-white shadow hover:bg-gray-100 text-blue-600 transition">
-              ▶
+            <button 
+              onClick={scrollRight} 
+              className="p-2 text-blue-600 hover:text-blue-800 transition transform hover:scale-110 active:scale-95"
+              aria-label="Scroll Direita"
+            >
+              <ChevronRight size={32} />
             </button>
           </div>
         </div>

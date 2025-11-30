@@ -360,11 +360,28 @@ app.post("/venda", async (req, res) => {
 app.post("/venda/itens", async (req, res) => {
   try {
     const { id_venda, id_produto, quantidade, preco_unitario_venda } = req.body;
-    const novoItemVenda = await prisma.itens_venda.create({
-      data: { id_venda, id_produto, quantidade, preco_unitario_venda },
-    });
+    const [novoItemVenda] = await prisma.$transaction([
+      prisma.itens_venda.create({
+        data: {
+          id_venda: parseInt(id_venda),
+          id_produto: parseInt(id_produto),
+          quantidade: parseInt(quantidade),
+          preco_unitario_venda: parseFloat(preco_unitario_venda),
+        },
+      }),
+      prisma.produtos.update({
+        where: { id_produto: parseInt(id_produto) },
+        data: {
+          estoque: {
+            decrement: parseInt(quantidade),
+          },
+        },
+      }),
+    ]);
+
     res.status(201).json(novoItemVenda);
   } catch (error) {
+    console.error("Erro ao registrar item e atualizar estoque:", error);
     res.status(500).json({ erro: "Erro interno", message: error.message });
   }
 });
@@ -448,11 +465,30 @@ app.post("/compra/itens", async (req, res) => {
   try {
     const { id_pedido, id_produto, quantidade, preco_custo_unitario } =
       req.body;
-    const novoItem = await prisma.itens_pedido.create({
-      data: { id_pedido, id_produto, quantidade, preco_custo_unitario },
-    });
+
+    // Transação para criar o item do pedido e aumentar o estoque
+    const [novoItem] = await prisma.$transaction([
+      prisma.itens_pedido.create({
+        data: {
+          id_pedido: parseInt(id_pedido),
+          id_produto: parseInt(id_produto),
+          quantidade: parseInt(quantidade),
+          preco_custo_unitario: parseFloat(preco_custo_unitario),
+        },
+      }),
+      prisma.produtos.update({
+        where: { id_produto: parseInt(id_produto) },
+        data: {
+          estoque: {
+            increment: parseInt(quantidade), // Aumenta o estoque com a quantidade comprada
+          },
+        },
+      }),
+    ]);
+
     res.status(201).json(novoItem);
   } catch (error) {
+    console.error("Erro ao registrar item de compra:", error);
     res.status(500).json({ erro: "Erro interno", message: error.message });
   }
 });
@@ -462,7 +498,9 @@ app.get("/fornecedores", async (req, res) => {
     const fornecedores = await prisma.fornecedores.findMany();
     res.json(fornecedores);
   } catch (error) {
-    res.status(500).json({ erro: "Erro ao listar fornecedores", message: error.message });
+    res
+      .status(500)
+      .json({ erro: "Erro ao listar fornecedores", message: error.message });
   }
 });
 
@@ -486,16 +524,16 @@ app.post("/administrador/cadastroFornecedor", async (req, res) => {
     res.status(201).json(novoFornecedor);
   } catch (error) {
     console.error("Erro ao cadastrar fornecedor:", error);
-    
-    if (error.code === 'P2002') {
-      return res.status(400).json({ 
-        erro: "Já existe um fornecedor cadastrado com este CNPJ, Email ou Telefone." 
+
+    if (error.code === "P2002") {
+      return res.status(400).json({
+        erro: "Já existe um fornecedor cadastrado com este CNPJ, Email ou Telefone.",
       });
     }
 
-    res.status(500).json({ 
-      erro: "Erro interno ao cadastrar fornecedor", 
-      message: error.message 
+    res.status(500).json({
+      erro: "Erro interno ao cadastrar fornecedor",
+      message: error.message,
     });
   }
 });

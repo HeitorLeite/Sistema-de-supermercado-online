@@ -7,10 +7,13 @@ import {
   Building2, 
   Search, 
   PackageCheck,
-  ClipboardCopy,
-  Trash2
-} from "lucide-react";
+  Trash2,
+  CheckCircle, 
+  AlertCircle, 
+  X 
+} from "lucide-react"; // Importação dos ícones corrigida
 
+// --- TIPOS ---
 type Supplier = {
   id_fornecedor: number;
   nome: string;
@@ -34,6 +37,43 @@ type OrderItem = {
   custo: number;
 };
 
+// --- COMPONENTE DE NOTIFICAÇÃO (TOAST) ---
+const Notification = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning', onClose: () => void }) => {
+  const bgColors = {
+    success: 'bg-green-500',
+    error: 'bg-red-500',
+    warning: 'bg-yellow-500'
+  };
+  const icons = {
+    success: <CheckCircle className="w-5 h-5" />,
+    error: <X className="w-5 h-5" />,
+    warning: <AlertCircle className="w-5 h-5" />
+  };
+
+  return (
+    <div 
+      className={`
+        fixed top-24 right-5 z-[100] flex items-center p-4 mb-4 text-white rounded-lg shadow-2xl 
+        animate-in slide-in-from-right-5 fade-in duration-300
+        ${bgColors[type]}
+      `} 
+      role="alert"
+    >
+      <div className="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg bg-white/20">
+        {icons[type]}
+      </div>
+      <div className="ml-3 text-sm font-semibold pr-4">{message}</div>
+      <button 
+        type="button" 
+        className="ml-auto -mx-1.5 -my-1.5 bg-transparent text-white rounded-lg p-1.5 hover:bg-white/20 inline-flex h-8 w-8" 
+        onClick={onClose}
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
 export default function Purchases() {
   const [activeTab, setActiveTab] = useState<'suppliers' | 'order'>('order');
   
@@ -50,7 +90,14 @@ export default function Purchases() {
   const [quantity, setQuantity] = useState("");
   const [costPrice, setCostPrice] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
+
+  // --- Estado de Notificação ---
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'warning') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3500);
+  };
 
   useEffect(() => {
     fetchData();
@@ -66,23 +113,30 @@ export default function Purchases() {
       setProducts(resProducts.data);
     } catch (error) {
       console.error("Erro ao carregar dados", error);
+      showNotification("Erro ao carregar dados do servidor.", "error");
     }
   };
 
   const handleAddSupplier = async () => {
-    if (!newSupplier.nome || !newSupplier.cnpj) return alert("Nome e CNPJ obrigatórios");
+    if (!newSupplier.nome || !newSupplier.cnpj) {
+      showNotification("Nome e CNPJ são obrigatórios", "warning");
+      return;
+    }
     try {
       await api.post("/administrador/cadastroFornecedor", newSupplier);
-      alert("Fornecedor cadastrado!");
+      showNotification("Fornecedor cadastrado com sucesso!", "success");
       setNewSupplier({ nome: "", cnpj: "", cidade: "", telefone: "", email: "" });
       fetchData(); // Recarrega lista
     } catch (error) {
-      alert("Erro ao cadastrar fornecedor");
+      showNotification("Erro ao cadastrar fornecedor.", "error");
     }
   };
 
   const addItemToOrder = () => {
-    if (!selectedProductId || !quantity || !costPrice) return;
+    if (!selectedProductId || !quantity || !costPrice) {
+      showNotification("Preencha o produto, quantidade e custo.", "warning");
+      return;
+    }
     
     const product = products.find(p => p.id_produto === Number(selectedProductId));
     if (!product) return;
@@ -97,7 +151,7 @@ export default function Purchases() {
     setOrderItems([...orderItems, newItem]);
     setQuantity("");
     setCostPrice("");
-    // Não limpa o produto para facilitar adição recorrente, ou limpa se preferir
+    showNotification("Item adicionado à lista.", "success");
   };
 
   const handleRemoveItem = (index: number) => {
@@ -107,13 +161,16 @@ export default function Purchases() {
   };
 
   const handleFinalizeOrder = async () => {
-    if (!selectedSupplierId || orderItems.length === 0) return alert("Selecione um fornecedor e adicione itens.");
+    if (!selectedSupplierId || orderItems.length === 0) {
+      showNotification("Selecione um fornecedor e adicione itens.", "warning");
+      return;
+    }
 
     try {
-      // 1. Criar Pedido
+      // 1. Criar Pedido (Status Entregue para atualizar estoque automaticamente no backend)
       const resOrder = await api.post("/compra", {
         id_fornecedor: Number(selectedSupplierId),
-        status_pedido: "Pendente"
+        status_pedido: "Entregue"
       });
       
       const orderId = resOrder.data.id_pedido;
@@ -128,33 +185,34 @@ export default function Purchases() {
         });
       }
 
-      // 3. Gerar Mensagem de Pedido
-      const supplierName = suppliers.find(s => s.id_fornecedor === Number(selectedSupplierId))?.nome;
-      const message = `
-📦 *NOVO PEDIDO DE COMPRA*
-Fornecedor: ${supplierName}
-ID Pedido: #${orderId}
-
-*Itens Solicitados:*
-${orderItems.map(i => `- ${i.quantidade}x ${i.nome} (Custo prev.: R$ ${i.custo.toFixed(2)})`).join('\n')}
-
-Total de Itens: ${orderItems.reduce((acc, i) => acc + i.quantidade, 0)}
-      `.trim();
-
-      setOrderSuccess(message);
+      // 3. Sucesso e Limpeza
+      showNotification(`Compra #${orderId} realizada e estoque atualizado!`, "success");
       setOrderItems([]);
       setSelectedSupplierId("");
       
+      // Recarrega produtos para mostrar estoque atualizado
+      fetchData(); 
+      
     } catch (error) {
       console.error(error);
-      alert("Erro ao processar pedido de compra.");
+      showNotification("Erro ao processar pedido de compra.", "error");
     }
   };
 
   const totalOrderValue = orderItems.reduce((acc, item) => acc + (item.custo * item.quantidade), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-28 pb-10 px-4 sm:px-8">
+    <div className="min-h-screen bg-gray-50 pt-28 pb-10 px-4 sm:px-8 relative">
+      
+      {/* Toast Notification */}
+      {notification && (
+        <Notification 
+          message={notification.message} 
+          type={notification.type} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
+
       <div className="max-w-6xl mx-auto">
         
         <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -355,30 +413,6 @@ Total de Itens: ${orderItems.reduce((acc, i) => acc + i.quantidade, 0)}
                   <PackageCheck size={20} /> Confirmar Compra
                 </button>
               </div>
-
-              {/* Mensagem de Sucesso / Envio */}
-              {orderSuccess && (
-                <div className="bg-green-50 p-4 rounded-xl border border-green-200 animate-in fade-in slide-in-from-bottom-2">
-                  <div className="flex items-start gap-3 mb-2">
-                    <CheckCircle className="text-green-600 mt-1" size={20} />
-                    <div>
-                      <h4 className="font-bold text-green-800">Pedido Registrado!</h4>
-                      <p className="text-xs text-green-700">O pedido foi salvo no banco de dados.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white p-3 rounded border border-green-100 text-xs font-mono text-gray-600 whitespace-pre-wrap max-h-40 overflow-y-auto mb-3">
-                    {orderSuccess}
-                  </div>
-
-                  <button 
-                    onClick={() => navigator.clipboard.writeText(orderSuccess)}
-                    className="w-full bg-green-200 text-green-800 py-2 rounded-lg text-xs font-bold hover:bg-green-300 transition flex items-center justify-center gap-2"
-                  >
-                    <ClipboardCopy size={14} /> Copiar Mensagem do Pedido
-                  </button>
-                </div>
-              )}
             </div>
 
           </div>

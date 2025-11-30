@@ -8,7 +8,7 @@ import {
   Menu,
   ShieldCheck,
   Package,
-  Truck // Ícone para compras
+  Truck
 } from "lucide-react";
 
 // Componentes
@@ -17,7 +17,7 @@ import Register from "./app/modules/register/Register";
 import Home from "./app/modules/home/Home";
 import Promotion from "./app/modules/admin/promotion/Promotion";
 import Products from "./app/modules/admin/products/Products";
-import Purchases from "./app/modules/admin/purchases/Purchases"; // NOVO IMPORT
+import Purchases from "./app/modules/admin/purchases/Purchases";
 import Buys from "./app/modules/buys/Buys";
 import Profile from "./app/modules/profile/Profile";
 import Sacola from "./app/modules/sacola/Sacola";
@@ -91,7 +91,10 @@ function Navigation() {
     window.location.reload();
   };
 
-  const navLinkStyle = "text-white font-medium hover:text-blue-200 transition-colors duration-200 px-3 py-2 rounded-md text-sm flex items-center gap-2";
+  // Estilos da Navbar (Texto Branco)
+  const navLinkStyle = "text-white font-medium hover:text-blue-200 transition-colors duration-200 px-3 py-2 rounded-md text-sm flex items-center gap-2 bg-transparent hover:bg-white/10";
+  
+  // Estilos dos Itens do Dropdown (Texto Escuro - Original)
   const dropdownItemStyle = "block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer w-full text-left";
 
   return (
@@ -107,7 +110,7 @@ function Navigation() {
             <div className="hidden md:flex items-center space-x-2">
               <div className="relative group">
                 <button
-                  className={`${navLinkStyle} bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10`}
+                  className={navLinkStyle}
                   onMouseEnter={() => setMenuCategoriasOpen(true)}
                   onClick={() => setMenuCategoriasOpen(!menuCategoriasOpen)}
                 >
@@ -118,7 +121,7 @@ function Navigation() {
 
                 {menuCategoriasOpen && (
                   <div 
-                    className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl py-2 z-50 border border-gray-100 ring-1 ring-black ring-opacity-5 animate-in fade-in zoom-in-95 duration-100"
+                    className="text-blue-400 absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl py-2 z-50 border border-gray-100 ring-1 ring-black ring-opacity-5 animate-in fade-in zoom-in-95 duration-100"
                     onMouseLeave={() => setMenuCategoriasOpen(false)}
                   >
                     {categorias.map((cat) => (
@@ -155,7 +158,6 @@ function Navigation() {
                     >
                       <Link to="/promotion" className={dropdownItemStyle}>Cadastrar Promoção</Link>
                       <Link to="/products" className={dropdownItemStyle}>Cadastrar Produtos</Link>
-                      {/* NOVO LINK ADICIONADO AQUI */}
                       <Link to="/admin/purchases" className={dropdownItemStyle}>Comprar Produtos</Link>
                     </div>
                   )}
@@ -166,7 +168,7 @@ function Navigation() {
             </div>
 
             <div className="hidden md:flex items-center gap-4">
-              <div className="flex items-center bg-white/10 rounded-full p-1 border border-white/10 relative">
+              <div className="flex items-center bg-transparent rounded-full p-1 relative">
                 <Link to="/sacola" className="p-2 text-white hover:text-green-300 transition relative" title="Sacola">
                   <ShoppingBag size={20} />
                   {totalItems > 0 && (
@@ -182,17 +184,18 @@ function Navigation() {
                 onMouseEnter={() => setMenuProfileOpen(true)}
                 onMouseLeave={() => setMenuProfileOpen(false)}
               >
-                <button className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full bg-white text-blue-900 shadow-md hover:shadow-lg transition-all border border-blue-100 group">
-                  <div className="bg-blue-100 p-1.5 rounded-full group-hover:bg-blue-200 transition">
-                    <User size={20} className="text-blue-700" />
+                {/* Botão de Perfil: Transparente com texto Branco */}
+                <button className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full bg-transparent text-white hover:bg-white/10 transition-all group">
+                  <div className="bg-white/20 p-1.5 rounded-full group-hover:bg-white/30 transition">
+                    <User size={20} className="text-white" />
                   </div>
                   <div className="flex flex-col items-start mr-1">
-                    <span className="text-xs text-gray-500 font-medium leading-none mb-0.5">Olá,</span>
-                    <span className="text-sm font-bold leading-none max-w-[100px] truncate">
+                    <span className="text-xs text-white/80 font-medium leading-none mb-0.5">Olá,</span>
+                    <span className="text-sm font-bold leading-none max-w-[100px] truncate text-white">
                       {usuario ? usuario.nome.split(' ')[0] : 'Visitante'}
                     </span>
                   </div>
-                  <ChevronDown size={14} className="text-gray-400" />
+                  <ChevronDown size={14} className="text-white" />
                 </button>
 
                 {menuProfileOpen && (
@@ -204,7 +207,12 @@ function Navigation() {
                     <Link to="/profile" className={`${dropdownItemStyle} flex items-center gap-2`}><User size={16} /> Meu Perfil</Link>
                     <Link to="/checkout" className={`${dropdownItemStyle} flex items-center gap-2`}><Package size={16} /> Meus Pedidos</Link>
                     <div className="border-t border-gray-100 mt-2 pt-2">
-                      <button onClick={handleLogout} className={`${dropdownItemStyle} text-red-600 hover:bg-red-50 flex items-center gap-2`}><LogOut size={16} /> Sair</button>
+                      <button 
+                        onClick={handleLogout} 
+                        className="w-full px-4 py-2 text-sm text-red-600 hover:text-red-700 flex items-center gap-2 bg-transparent transition-colors cursor-pointer text-left"
+                      >
+                        <LogOut size={16} /> Sair
+                      </button>
                     </div>
                   </div>
                 )}
@@ -248,7 +256,13 @@ function Navigation() {
               <p>📧 suporte@freshness.com</p>
               <p>📞 (11) 99999-8888</p>
             </div>
-            <button onClick={() => setOpenContactModal(false)} className="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg">Fechar</button>
+            {/* Botão Fechar com Texto Branco */}
+            <button 
+              onClick={() => setOpenContactModal(false)} 
+              className="mt-6 w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+            >
+              Fechar
+            </button>
           </div>
         </div>
       )}
@@ -284,7 +298,6 @@ function App() {
               <Route path="/promotion" element={<Promotion />} />
               <Route path="/products" element={<Products />} />
               
-              {/* NOVA ROTA */}
               <Route path="/admin/purchases" element={<Purchases />} />
               
               <Route path="/buys" element={<Buys />} />
@@ -298,7 +311,8 @@ function App() {
         </CartProvider>
       </div>
 
-      <footer className="bg-gradient-to-br from-[#0B4878] to-[#062c4d] text-white py-12 mt-auto border-t-4 border-green-500">
+      {/* Footer sem borda verde superior */}
+      <footer className="bg-gradient-to-br from-[#0B4878] to-[#062c4d] text-white py-12 mt-auto">
         <div className="max-w-7xl mx-auto px-6 text-center md:text-left">
           <p>© {new Date().getFullYear()} Freshness Supermercado.</p>
         </div>
