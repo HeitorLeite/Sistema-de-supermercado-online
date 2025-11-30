@@ -113,3 +113,11 @@ model administradores {
   data_nascimento DateTime? @db.Date
   data_cadastro   DateTime? @default(now()) @db.DateTime(0)
 }
+
+// NOVA TABELA DE TAREFAS
+model tarefas {
+  id_tarefa    Int      @id @default(autoincrement())
+  descricao    String   @db.VarChar(255)
+  concluida    Boolean  @default(false)
+  data_criacao DateTime @default(now()) @db.DateTime(0)
+}

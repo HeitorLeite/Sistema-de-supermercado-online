@@ -1,562 +1,629 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect } from "react";
+import { 
+  User, 
+  Settings, 
+  MapPin, 
+  Phone, 
+  Mail, 
+  Save, 
+  LayoutDashboard, 
+  Users, 
+  ClipboardList, 
+  UserPlus, 
+  CheckCircle,
+  AlertCircle,
+  Trash2,
+  Plus,
+  Edit,
+  Search,
+  Shield,
+  X
+} from "lucide-react";
+import api from "../../../services/api";
 
-interface NavItem {
-    name: string;
-    icon: string;
-    target: string;
-}
-
-interface FirestoreInterface {
-    db: () => any;
-    collection: (db: any, path: string) => string;
-    addDoc: (ref: string, data: any) => Promise<{ id: string }>;
-    doc: (db: any, path: string, id: string) => string;
-    updateDoc: (ref: string, data: any) => Promise<void>;
-    deleteDoc: (ref: string) => Promise<void>;
-    query: (ref: string, ...constraints: string[]) => string;
-    where: (field: string, op: string, value: any) => string;
-    onSnapshot: (q: string, callback: (snapshot: any) => void, onError?: (err: any) => void) => () => void;
-}
-
-interface Delivery {
-    id: string;
-    packageId: string;
-    address: string;
-    status: 'pendente' | 'em rota' | 'entregue' | string;
-    createdAt?: number;
-}
-
-interface Task {
-    id: string;
-    name: string;
-    completed: boolean;
-    createdAt: number;
-}
-
-interface ContentProps {
-    firestore: FirestoreInterface;
-    userId: string | null;
-    appId: string;
-    isAuthReady: boolean;
-    currentUserType: keyof typeof navigation;
-}
-
-type UserRole = 'admin' | 'supplier' | 'delivery' | 'client';
-
-
-const firebaseImports: { [key: string]: any } = {
-    initializeApp: (config: any) => ({}),
-    getAuth: (app: any) => ({}),
-    signInAnonymously: (auth: any) => ({ user: { uid: 'simulated-user-id-from-auth-call' } }), 
-    signInWithCustomToken: (auth: any, token: string) => ({ user: { uid: 'simulated-user-id-from-token-call' } }),
-    onAuthStateChanged: (auth: any, callback: (user: { uid: string } | null) => void) => {
-        const user = { uid: 'simulated-user-id-initial' };
-        callback(user);
-        return () => {};
-    },
-    getFirestore: (app: any) => ({}),
-    setLogLevel: () => {},
-    onSnapshot: (q: string, callback: (snapshot: any) => void, onError: (err: any) => void) => {
-        const mockData = [
-            { id: 't1', data: () => ({ name: 'Revisar logs', completed: false, createdAt: 1678886400000 }) },
-            { id: 't2', data: () => ({ name: 'Responder ticket 45', completed: true, createdAt: 1678886400001 }) },
-            { id: 'd1', data: () => ({ id: 'd1', packageId: 'P-1001', address: 'Rua A, 123', status: 'pendente', createdAt: 1678886400002 }) },
-            { id: 'd2', data: () => ({ id: 'd2', packageId: 'P-1002', address: 'Av. B, 456', status: 'em rota', createdAt: 1678886400003 }) },
-        ];
-        
-        const mockSnapshot = {
-            docs: mockData.filter(doc => (q.includes('adminTasks') && doc.id.startsWith('t')) || (q.includes('deliveries') && doc.id.startsWith('d'))),
-            map: Array.prototype.map.bind(mockData)
-        };
-        
-        setTimeout(() => callback(mockSnapshot), 500);
-        return () => {};
-    },
-    collection: (db: any, path: string) => path,
-    addDoc: async (ref: string, data: any) => { console.log('Mock Add:', ref, data); return { id: `new-doc-${Date.now()}` }; },
-    doc: (db: any, path: string, id: string) => `${path}/${id}`,
-    updateDoc: async (ref: string, data: any) => console.log('Mock Update:', ref, data),
-    deleteDoc: async (ref: string) => console.log('Mock Delete:', ref),
-    query: (ref: string, ...constraints: string[]) => ref + constraints.join(''), 
-    where: (field: string, op: string, value: any) => `|where ${field} ${op} ${value}`, 
+// --- TIPOS ---
+type UserData = {
+  id_cliente?: number;
+  id_adm?: number;
+  nome: string;
+  email: string;
+  cpf: string;
+  telefone: string;
+  endereco: string;
+  data_nascimento?: string;
+  senha?: string;
 };
 
-let app: any, db: any, auth: any;
-
-const navigation: { [key in UserRole]: NavItem[] } = {
-    admin: [
-        { name: 'Dashboard Admin', icon: 'bar-chart-3', target: 'admin-dashboard' },
-        { name: 'Gestão de Usuários', icon: 'users', target: 'admin-users' },
-        { name: 'Tarefas Pendentes', icon: 'clipboard-list', target: 'admin-tasks' },
-        { name: 'Configurações', icon: 'settings', target: 'admin-settings' },
-    ],
-    supplier: [
-        { name: 'Visão Geral', icon: 'package', target: 'supplier-overview' },
-        { name: 'Meus Produtos', icon: 'boxes', target: 'supplier-products' },
-        { name: 'Pedidos Recebidos', icon: 'truck', target: 'supplier-orders' },
-        { name: 'Pagamentos', icon: 'wallet', target: 'supplier-payments' },
-    ],
-    delivery: [
-        { name: 'Minhas Entregas', icon: 'map-pin', target: 'delivery-map' },
-        { name: 'Próximos Pedidos', icon: 'package-open', target: 'delivery-queue' },
-        { name: 'Histórico', icon: 'history', target: 'delivery-history' },
-    ],
-    client: [
-        { name: 'Catálogo', icon: 'store', target: 'client-catalog' },
-        { name: 'Meus Pedidos', icon: 'shopping-bag', target: 'client-orders' },
-        { name: 'Meu Perfil', icon: 'user', target: 'client-profile' },
-    ]
+type Task = {
+  id: number;
+  text: string;
+  completed: boolean;
 };
 
-const Icon: React.FC<{ name: string; className?: string }> = ({ name, className = 'w-5 h-5' }) => {
-    return (
-        <div className={`icon-box ${className}`} style={{ minWidth: '20px', minHeight: '20px', display: 'flex', alignItems: 'center' }}>
-            <svg data-lucide={name} className={className}></svg>
+// --- COMPONENTES AUXILIARES ---
+
+const Notification = ({ msg, type }: { msg: string, type: 'success' | 'error' }) => {
+  if (!msg) return null;
+  return (
+    <div className={`p-4 mb-4 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+      {type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+      <span>{msg}</span>
+    </div>
+  );
+};
+
+// --- VISÃO DO CLIENTE (Edição de Perfil) ---
+const ClientProfile = ({ user }: { user: UserData }) => {
+  const [formData, setFormData] = useState<UserData>(user);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSave = async () => {
+    if (!formData.id_cliente) return;
+    setLoading(true);
+    setMsg(null);
+    try {
+      await api.put(`/cliente/${formData.id_cliente}`, formData);
+      localStorage.setItem("usuario", JSON.stringify(formData));
+      setMsg({ text: "Dados atualizados com sucesso!", type: "success" });
+    } catch (error) {
+      console.error(error);
+      setMsg({ text: "Erro ao atualizar dados.", type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+      <div className="flex items-center gap-4 mb-8 border-b pb-4">
+        <div className="bg-blue-100 p-4 rounded-full">
+          <User size={40} className="text-blue-600" />
         </div>
-    );
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Minha Conta</h2>
+          <p className="text-gray-500">Gerencie suas informações pessoais</p>
+        </div>
+      </div>
+
+      {msg && <Notification msg={msg.text} type={msg.type} />}
+
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+            <div className="relative">
+              <User size={18} className="absolute left-3 top-3 text-gray-400" />
+              <input 
+                name="nome"
+                value={formData.nome}
+                onChange={handleChange}
+                className="w-full pl-10 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CPF (Não editável)</label>
+            <input 
+              value={formData.cpf} 
+              disabled 
+              className="w-full p-2.5 bg-gray-100 border border-gray-300 rounded-lg text-gray-500 cursor-not-allowed" 
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <div className="relative">
+            <Mail size={18} className="absolute left-3 top-3 text-gray-400" />
+            <input 
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className="w-full pl-10 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+          <div className="relative">
+            <Phone size={18} className="absolute left-3 top-3 text-gray-400" />
+            <input 
+              name="telefone"
+              value={formData.telefone || ""}
+              onChange={handleChange}
+              className="w-full pl-10 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+          <div className="relative">
+            <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
+            <input 
+              name="endereco"
+              value={formData.endereco || ""}
+              onChange={handleChange}
+              className="w-full pl-10 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+            />
+          </div>
+        </div>
+
+        <button 
+          onClick={handleSave}
+          disabled={loading}
+          className={`w-full mt-4 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white transition-all shadow-md
+            ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:shadow-lg hover:-translate-y-0.5'}
+          `}
+        >
+          <Save size={20} />
+          {loading ? "Salvando..." : "Salvar Alterações"}
+        </button>
+      </div>
+    </div>
+  );
 };
 
+// --- SUB-COMPONENTES ADMIN ---
 
-const DeliveryQueue: React.FC<ContentProps> = ({ firestore, userId, appId, isAuthReady }) => {
-    const [deliveries, setDeliveries] = useState<Delivery[]>([]);
-    const [error, setError] = useState<string>('');
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+const AdminStats = () => {
+  // Simulação de dados reais (em um cenário real, viriam de um endpoint /dashboard)
+  const [stats, setStats] = useState({ vendas: 0, clientes: 0, pedidos: 0 });
 
-    const fs: FirestoreInterface = firestore;
-
-    useEffect(() => {
-        if (!isAuthReady || !userId) return;
-
-        const collectionPath = `artifacts/${appId}/users/${userId}/deliveries`;
-        const deliveriesRef = fs.collection(fs.db(), collectionPath);
-        
-        const deliveriesQuery = fs.query(deliveriesRef, fs.where('status', 'in', ['pendente', 'em rota']));
-        
-        setIsLoading(true);
-        setError('');
-
-        const unsubscribe = fs.onSnapshot(deliveriesQuery, (snapshot: any) => {
-            try {
-                const fetchedDeliveries: Delivery[] = snapshot.docs
-                    .filter((doc: any) => doc.id.startsWith('d')) 
-                    .map((doc: any) => ({
-                        id: doc.id,
-                        ...(doc.data() as Omit<Delivery, 'id'>)
-                    }));
-
-                fetchedDeliveries.sort((a, b) => {
-                    if (a.status === 'em rota' && b.status === 'pendente') return -1;
-                    if (a.status === 'pendente' && b.status === 'em rota') return 1;
-                    return (a.createdAt || 0) - (b.createdAt || 0);
-                });
-                setDeliveries(fetchedDeliveries);
-                setIsLoading(false);
-            } catch (e) {
-                console.error("Erro ao carregar entregas:", e);
-                setError("Erro ao carregar entregas. Verifique o console.");
-                setIsLoading(false);
-            }
-        }, (err: any) => {
-            console.error("Erro no onSnapshot de entregas:", err);
-            setError("Falha na conexão em tempo real com o Firestore.");
-            setIsLoading(false);
+  useEffect(() => {
+    // Aqui você faria a chamada para a API de estatísticas
+    // Como não temos esse endpoint, vamos simular ou pegar alguns dados disponíveis
+    const fetchStats = async () => {
+      try {
+        // Exemplo: Pegar o total de produtos como um número interessante
+        const resProd = await api.get("/produtos");
+        // E simular outros números para a demo
+        setStats({
+          vendas: 12500.50, // Simulado
+          clientes: 48,     // Simulado
+          pedidos: resProd.data.length // Usando qtd de produtos como placeholder
         });
-
-        return () => unsubscribe();
-    }, [isAuthReady, userId, appId, fs]);
-
-    const handleUpdateStatus = useCallback(async (id: string, newStatus: Delivery['status']) => {
-        if (!isAuthReady || !userId) return;
-
-        try {
-            const collectionPath = `artifacts/${appId}/users/${userId}/deliveries`;
-            const deliveryRef = fs.doc(fs.db(), collectionPath, id);
-            await fs.updateDoc(deliveryRef, { status: newStatus });
-            setError('');
-        } catch (e) {
-            console.error("Erro ao atualizar status:", e);
-            setError("Falha ao atualizar o status da entrega.");
-        }
-    }, [isAuthReady, userId, appId, fs]);
-
-    const StatusButton: React.FC<{ delivery: Delivery }> = ({ delivery }) => {
-        if (delivery.status === 'em rota') {
-            return (
-                <button onClick={() => handleUpdateStatus(delivery.id, 'entregue')} className="px-3 py-1 text-xs font-semibold rounded-full bg-green-500 text-white hover:bg-green-600 transition duration-150">
-                    Concluir Entrega
-                </button>
-            );
-        }
-        if (delivery.status === 'pendente') {
-            return (
-                <button onClick={() => handleUpdateStatus(delivery.id, 'em rota')} className="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-500 text-white hover:bg-indigo-600 transition duration-150">
-                    Iniciar Rota
-                </button>
-            );
-        }
-        return <span className="text-xs text-gray-500 capitalize">{delivery.status}</span>;
+      } catch (error) {
+        console.error("Erro ao carregar stats", error);
+      }
     };
+    fetchStats();
+  }, []);
 
-    return (
-        <div className="mt-30 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">Próximos Pedidos (Dados Privados)</h3>
-            
-            {error && <div className="text-red-600 mb-4 p-3 bg-red-100 rounded-lg">{error}</div>}
-
-            <div className="space-y-4">
-                {isLoading ? (
-                    <p className="text-center text-gray-500 italic">Carregando fila de entregas...</p>
-                ) : deliveries.length === 0 ? (
-                    <p className="text-center text-gray-500 italic">Sua fila de entregas está vazia. Bom trabalho!</p>
-                ) : (
-                    deliveries.map((delivery) => (
-                        <div key={delivery.id} className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition duration-150">
-                            <div className="flex items-center space-x-4">
-                                <span className={`icon-box w-10 h-10 flex items-center justify-center rounded-full ${delivery.status === 'em rota' ? 'bg-indigo-500 text-white' : 'bg-yellow-100 text-yellow-700'}`}>
-                                    <Icon name={delivery.status === 'em rota' ? 'bike' : 'package-open'} className="w-6 h-6" />
-                                </span>
-                                <div>
-                                    <p className="font-semibold text-gray-800">Pedido **#{delivery.packageId || 'N/A'}**</p>
-                                    <p className="text-sm text-gray-600">{delivery.address || 'Endereço não informado'}</p>
-                                    <p className="text-xs font-medium mt-1">Status: <span className={`capitalize font-bold ${delivery.status === 'em rota' ? 'text-indigo-500' : 'text-yellow-700'}`}>{delivery.status}</span></p>
-                                </div>
-                            </div>
-                            <StatusButton delivery={delivery} />
-                        </div>
-                    ))
-                )}
-            </div>
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Faturamento Mensal</p>
+            <h3 className="text-3xl font-bold text-gray-800 mt-2">R$ {stats.vendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
+            <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
+              <span className="bg-green-100 px-1 rounded">▲ 12%</span> vs mês anterior
+            </p>
+          </div>
+          <div className="p-3 bg-green-50 text-green-600 rounded-xl"><LayoutDashboard size={28}/></div>
         </div>
-    );
+      </div>
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total de Clientes</p>
+            <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.clientes}</h3>
+            <p className="text-xs text-blue-500 mt-1">Novos cadastros esta semana</p>
+          </div>
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><Users size={28}/></div>
+        </div>
+      </div>
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Produtos em Estoque</p>
+            <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.pedidos}</h3>
+            <p className="text-xs text-orange-500 mt-1">Itens cadastrados no sistema</p>
+          </div>
+          <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><ClipboardList size={28}/></div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-const AdminTasks: React.FC<ContentProps> = ({ firestore, appId, isAuthReady }) => {
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [newTaskName, setNewTaskName] = useState<string>('');
-    const [error, setError] = useState<string>('');
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+// Modal de Edição de Usuário
+const EditUserModal = ({ user, onClose, onSave }: { user: UserData, onClose: () => void, onSave: (u: UserData) => void }) => {
+  const [form, setForm] = useState(user);
 
-    const fs: FirestoreInterface = firestore;
-
-    useEffect(() => {
-        if (!isAuthReady) return;
-
-        const collectionPath = `artifacts/${appId}/public/data/adminTasks`;
-        const tasksRef = fs.collection(fs.db(), collectionPath);
-        
-        const tasksQuery = fs.query(tasksRef); 
-        
-        setIsLoading(true);
-        setError('');
-
-        const unsubscribe = fs.onSnapshot(tasksQuery, (snapshot: any) => {
-            try {
-                const fetchedTasks: Task[] = snapshot.docs
-                    .filter((doc: any) => doc.id.startsWith('t'))
-                    .map((doc: any) => ({
-                        id: doc.id,
-                        ...(doc.data() as Omit<Task, 'id'>)
-                    }));
-
-                fetchedTasks.sort((a, b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1) || (a.createdAt - b.createdAt));
-                
-                setTasks(fetchedTasks);
-                setIsLoading(false);
-            } catch (e) {
-                console.error("Erro ao carregar tarefas:", e);
-                setError("Erro ao carregar tarefas. Verifique o console.");
-                setIsLoading(false);
-            }
-        }, (err: any) => {
-            console.error("Erro no onSnapshot de tarefas:", err);
-            setError("Falha na conexão em tempo real com o Firestore.");
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [isAuthReady, appId, fs]);
-
-    const handleAddTask = useCallback(async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (newTaskName.trim() === '' || !isAuthReady) return;
-
-        try {
-            const collectionPath = `artifacts/${appId}/public/data/adminTasks`;
-            const tasksRef = fs.collection(fs.db(), collectionPath);
-            await fs.addDoc(tasksRef, {
-                name: newTaskName,
-                completed: false,
-                createdAt: Date.now()
-            });
-            setNewTaskName('');
-            setError('');
-        } catch (e) {
-            console.error("Erro ao adicionar a tarefa:", e);
-            setError("Falha ao adicionar a tarefa.");
-        }
-    }, [newTaskName, isAuthReady, appId, fs]);
-
-    const handleToggleTask = useCallback(async (id: string, completed: boolean) => {
-        if (!isAuthReady) return;
-        try {
-            const collectionPath = `artifacts/${appId}/public/data/adminTasks`;
-            const taskRef = fs.doc(fs.db(), collectionPath, id);
-            await fs.updateDoc(taskRef, { completed: !completed });
-            setError('');
-        } catch (e) {
-            console.error("Erro ao atualizar tarefa:", e);
-            setError("Falha ao atualizar o status da tarefa.");
-        }
-    }, [isAuthReady, appId, fs]);
-
-    const handleDeleteTask = useCallback(async (id: string) => {
-        if (!isAuthReady) return;
-        try {
-            const collectionPath = `artifacts/${appId}/public/data/adminTasks`;
-            const taskRef = fs.doc(fs.db(), collectionPath, id);
-            await fs.deleteDoc(taskRef);
-            setError('');
-        } catch (e) {
-            console.error("Erro ao deletar tarefa:", e);
-            setError("Falha ao deletar a tarefa.");
-        }
-    }, [isAuthReady, appId, fs]);
-
-
-    return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">Tarefas Administrativas (Dados Públicos)</h3>
-            
-            <form onSubmit={handleAddTask} className="flex mb-6 space-x-2">
-                <input
-                    type="text"
-                    value={newTaskName}
-                    onChange={(e) => setNewTaskName(e.target.value)}
-                    placeholder="Adicionar nova tarefa..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition duration-150">
-                    <Icon name="plus" className="w-5 h-5" />
-                </button>
-            </form>
-
-            {error && <div className="text-red-600 mb-4 p-3 bg-red-100 rounded-lg">{error}</div>}
-
-            <div className="space-y-3">
-                {isLoading ? (
-                    <p className="text-center text-gray-500 italic">Carregando tarefas...</p>
-                ) : tasks.length === 0 ? (
-                    <p className="text-center text-gray-500 italic">Nenhuma tarefa pendente. Tudo certo!</p>
-                ) : (
-                    tasks.map((task) => (
-                        <div key={task.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white shadow-sm">
-                            <div className="flex items-center space-x-3">
-                                <input
-                                    type="checkbox"
-                                    checked={task.completed}
-                                    onChange={() => handleToggleTask(task.id, task.completed)}
-                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                />
-                                <span className={`text-gray-800 ${task.completed ? 'line-through text-gray-500 italic' : 'font-medium'}`}>
-                                    {task.name} 
-                                </span>
-                            </div>
-                            <button 
-                                onClick={() => handleDeleteTask(task.id)} 
-                                className="p-1 text-red-500 hover:text-red-700 rounded-full transition duration-150"
-                                aria-label="Excluir Tarefa"
-                            >
-                                <Icon name="trash-2" className="w-5 h-5" />
-                            </button>
-                        </div>
-                    ))
-                )}
-            </div>
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+      <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200">
+        <h3 className="text-xl font-bold text-gray-800 mb-4 flex justify-between items-center">
+          Editar Usuário
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+        </h3>
+        <div className="space-y-3">
+          <input className="w-full p-2 border rounded-lg" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} placeholder="Nome" />
+          <input className="w-full p-2 border rounded-lg" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Email" />
+          <input className="w-full p-2 border rounded-lg" value={form.telefone || ''} onChange={e => setForm({...form, telefone: e.target.value})} placeholder="Telefone" />
+          <input className="w-full p-2 border rounded-lg" value={form.endereco || ''} onChange={e => setForm({...form, endereco: e.target.value})} placeholder="Endereço" />
+          
+          <button 
+            onClick={() => onSave(form)} 
+            className="w-full mt-4 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition"
+          >
+            Salvar Alterações
+          </button>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
-const AdminDashboard: React.FC<ContentProps> = () => (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-5 rounded-xl shadow-md border border-gray-100">... Admin Metric 1 ...</div>
-        <div className="bg-white p-5 rounded-xl shadow-md border border-gray-100">... Admin Metric 2 ...</div>
-        <div className="bg-white p-5 rounded-xl shadow-md border border-gray-100">... Admin Metric 3 ...</div>
+const UserManagement = () => {
+  const [view, setView] = useState<'clientes' | 'admins'>('clientes');
+  const [users, setUsers] = useState<UserData[]>([]); // Clientes ou Admins
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [view]);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      // NOTE: Aqui estamos simulando endpoints separados.
+      // O seu backend tem um endpoint /cliente/:id, mas não um "listar todos".
+      // Em uma aplicação real, você precisaria de `api.get("/clientes")` e `api.get("/administradores")`.
+      // Como estamos sem esses endpoints específicos no server.js fornecido (apenas get by id), 
+      // vou simular uma lista vazia ou mockada para demonstrar a interface.
+      
+      // MOCK DE DADOS PARA VISUALIZAÇÃO
+      if (view === 'clientes') {
+        setUsers([
+          { id_cliente: 1, nome: "João Silva", email: "joao@email.com", cpf: "123.456.789-00", telefone: "1199999999", endereco: "Rua A, 123" },
+          { id_cliente: 2, nome: "Maria Souza", email: "maria@email.com", cpf: "321.654.987-00", telefone: "2198888888", endereco: "Av B, 456" },
+        ]);
+      } else {
+        setUsers([
+          { id_adm: 1, nome: "Admin Principal", email: "admin@freshness.com", cpf: "000.000.000-00", telefone: "00000000", endereco: "Sede" },
+        ]);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar usuários", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateUser = async (updatedUser: UserData) => {
+    try {
+      // Aqui chamaria a API real: await api.put(`/cliente/${updatedUser.id_cliente}`, updatedUser);
+      // Atualiza estado local
+      setUsers(users.map(u => (u.id_cliente === updatedUser.id_cliente ? updatedUser : u)));
+      setEditingUser(null);
+      alert("Usuário atualizado (Simulação)");
+    } catch (error) {
+      alert("Erro ao atualizar");
+    }
+  };
+
+  const filteredUsers = users.filter(u => 
+    u.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-300">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          {view === 'clientes' ? <Users className="text-blue-600"/> : <Shield className="text-purple-600"/>}
+          Gestão de {view === 'clientes' ? 'Clientes' : 'Administradores'}
+        </h2>
+        
+        <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+          <button 
+            onClick={() => setView('clientes')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition ${view === 'clientes' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Clientes
+          </button>
+          <button 
+            onClick={() => setView('admins')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition ${view === 'admins' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Admins
+          </button>
+        </div>
+      </div>
+
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+        <input 
+          type="text" 
+          placeholder={`Buscar ${view}...`} 
+          className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="py-3 px-2">Nome</th>
+              <th className="py-3 px-2">Email</th>
+              <th className="py-3 px-2">Telefone</th>
+              <th className="py-3 px-2 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="text-sm text-gray-700">
+            {loading ? (
+              <tr><td colSpan={4} className="text-center py-8">Carregando...</td></tr>
+            ) : filteredUsers.length === 0 ? (
+              <tr><td colSpan={4} className="text-center py-8 text-gray-400">Nenhum usuário encontrado.</td></tr>
+            ) : (
+              filteredUsers.map((user) => (
+                <tr key={user.id_cliente || user.id_adm} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                  <td className="py-3 px-2 font-medium">{user.nome}</td>
+                  <td className="py-3 px-2">{user.email}</td>
+                  <td className="py-3 px-2">{user.telefone || '-'}</td>
+                  <td className="py-3 px-2 text-right">
+                    {view === 'clientes' && (
+                      <button 
+                        onClick={() => setEditingUser(user)}
+                        className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition"
+                        title="Editar"
+                      >
+                        <Edit size={18} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {editingUser && (
+        <EditUserModal 
+          user={editingUser} 
+          onClose={() => setEditingUser(null)} 
+          onSave={handleUpdateUser} 
+        />
+      )}
     </div>
-); 
-const SupplierOverview: React.FC<ContentProps> = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-5 rounded-xl shadow-md border border-gray-100">... Supplier Metric 1 ...</div>
-        <div className="bg-white p-5 rounded-xl shadow-md border border-gray-100">... Supplier Metric 2 ...</div>
+  );
+};
+
+const TaskManager = () => {
+  const [tasks, setTasks] = useState<Task[]>([
+    { id: 1, text: "Verificar estoque de laticínios", completed: false },
+    { id: 2, text: "Aprovar cadastro de fornecedor XPTO", completed: true },
+    { id: 3, text: "Responder dúvidas no chat", completed: false },
+  ]);
+  const [newTaskText, setNewTaskText] = useState("");
+
+  const addTask = () => {
+    if (!newTaskText.trim()) return;
+    const newTask = {
+      id: Date.now(),
+      text: newTaskText,
+      completed: false
+    };
+    setTasks([...tasks, newTask]);
+    setNewTaskText("");
+  };
+
+  const toggleTask = (id: number) => {
+    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  };
+
+  const removeTask = (id: number) => {
+    setTasks(tasks.filter(t => t.id !== id));
+  };
+
+  return (
+    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-300">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <ClipboardList className="text-orange-500" /> Tarefas Pendentes
+      </h2>
+
+      <div className="flex gap-2 mb-6">
+        <input 
+          type="text" 
+          value={newTaskText}
+          onChange={(e) => setNewTaskText(e.target.value)}
+          placeholder="Adicionar nova tarefa..."
+          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          onKeyDown={(e) => e.key === 'Enter' && addTask()}
+        />
+        <button 
+          onClick={addTask}
+          className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition"
+        >
+          <Plus size={24} />
+        </button>
+      </div>
+
+      <ul className="space-y-3">
+        {tasks.length === 0 && <p className="text-center text-gray-400 py-4">Nenhuma tarefa pendente.</p>}
+        {tasks.map((task) => (
+          <li 
+            key={task.id} 
+            className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-200
+              ${task.completed ? 'bg-gray-50 border-gray-200 opacity-75' : 'bg-white border-gray-200 hover:shadow-md hover:border-orange-200'}
+            `}
+          >
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => toggleTask(task.id)}
+                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
+                  ${task.completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-transparent hover:border-orange-500'}
+                `}
+              >
+                <CheckCircle size={14} />
+              </button>
+              <span className={`text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-700 font-medium'}`}>
+                {task.text}
+              </span>
+            </div>
+            
+            <button 
+              onClick={() => removeTask(task.id)}
+              className="text-gray-400 hover:text-red-500 transition p-2 rounded-full hover:bg-red-50"
+            >
+              <Trash2 size={18} />
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
-);
-const ClientCatalog: React.FC<ContentProps> = () => (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-5 rounded-xl shadow-md border border-gray-100">... Product Card 1 ...</div>
-        <div className="bg-white p-5 rounded-xl shadow-md border border-gray-100">... Product Card 2 ...</div>
+  );
+};
+
+const NewAdminForm = () => {
+  const [form, setForm] = useState({ nome: "", email: "", senha: "", cpf: "", telefone: "", endereco: "", data_nascimento: "" });
+  const [msg, setMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      // Ajuste de data para ISO
+      const dataIso = form.data_nascimento ? new Date(form.data_nascimento).toISOString() : null;
+      
+      await api.post("/administrador/cadastro", { ...form, data_nascimento: dataIso });
+      setMsg({ text: "Administrador cadastrado com sucesso!", type: "success" });
+      setForm({ nome: "", email: "", senha: "", cpf: "", telefone: "", endereco: "", data_nascimento: "" });
+    } catch (error) {
+      console.error(error);
+      setMsg({ text: "Erro ao cadastrar administrador.", type: "error" });
+    }
+  };
+
+  return (
+    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 animate-in fade-in slide-in-from-right-4 duration-300">
+      <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <UserPlus className="text-blue-600"/> Cadastrar Novo Administrador
+      </h3>
+      
+      {msg && <Notification msg={msg.text} type={msg.type} />}
+
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <input required placeholder="Nome Completo" className="p-3 border rounded-lg" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} />
+        <input required placeholder="CPF" className="p-3 border rounded-lg" value={form.cpf} onChange={e => setForm({...form, cpf: e.target.value})} />
+        <input required type="email" placeholder="Email Corporativo" className="p-3 border rounded-lg" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
+        <input required type="password" placeholder="Senha de Acesso" className="p-3 border rounded-lg" value={form.senha} onChange={e => setForm({...form, senha: e.target.value})} />
+        <input placeholder="Telefone" className="p-3 border rounded-lg" value={form.telefone} onChange={e => setForm({...form, telefone: e.target.value})} />
+        <input placeholder="Endereço" className="p-3 border rounded-lg" value={form.endereco} onChange={e => setForm({...form, endereco: e.target.value})} />
+        <div className="md:col-span-2">
+          <label className="text-xs text-gray-500 ml-1">Data de Nascimento</label>
+          <input type="date" className="w-full p-3 border rounded-lg" value={form.data_nascimento} onChange={e => setForm({...form, data_nascimento: e.target.value})} />
+        </div>
+        
+        <button type="submit" className="md:col-span-2 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md">
+          Cadastrar Administrador
+        </button>
+      </form>
     </div>
-);
+  );
+};
 
+// --- VISÃO DO ADMINISTRADOR (Layout Principal) ---
+const AdminPanel = ({ user }: { user: UserData }) => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'tasks' | 'new-admin'>('dashboard');
 
-const FallbackContent: React.FC<ContentProps & { target: string, name: string }> = ({ name, currentUserType }) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <p className="text-gray-600">Este é o painel para **{name}**.</p>
-        <p className="mt-4 text-sm text-gray-500">Funcionalidade em desenvolvimento para o perfil **{currentUserType}**.</p>
-    </div>
-);
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'users', label: 'Gestão de Usuários', icon: Users },
+    { id: 'tasks', label: 'Tarefas Pendentes', icon: ClipboardList },
+    { id: 'new-admin', label: 'Novo Administrador', icon: UserPlus },
+  ];
 
-
-const Sidebar: React.FC<{ userType: UserRole, currentView: string, onViewChange: (view: string) => void }> = ({ userType, currentView, onViewChange }) => {
-    const items = navigation[userType] || [];
-
-    return (
-        <nav id="sidebar" className="w-64 bg-white shadow-xl p-4 transition-all duration-300 border-r border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800 mb-6">Menu {userType.charAt(0).toUpperCase() + userType.slice(1)}</h2>
-            <ul className="space-y-2">
-                {items.map((item) => (
-                    <li key={item.target}>
-                        <a 
-                            href="#" 
-                            onClick={(e) => { e.preventDefault(); onViewChange(item.target); }}
-                            className={`flex items-center p-3 text-sm font-medium rounded-lg transition duration-200 
-                                ${currentView === item.target ? 'bg-indigo-500 text-white' : 'text-gray-600 hover:bg-indigo-500 hover:text-white'}`
-                            }
-                        >
-                            <Icon name={item.icon} className="w-5 h-5 mr-3" />
-                            <span>{item.name}</span>
-                        </a>
-                    </li>
-                ))}
-            </ul>
+  return (
+    <div className="flex flex-col md:flex-row gap-6 min-h-[600px]">
+      {/* Sidebar */}
+      <aside className="w-full md:w-64 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 h-fit">
+        <div className="mb-6 px-2">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Painel Admin</p>
+          <h2 className="text-xl font-bold text-gray-800 truncate">{user.nome.split(' ')[0]}</h2>
+        </div>
+        <nav className="space-y-1">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id as any)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium
+                ${activeTab === item.id 
+                  ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
+              `}
+            >
+              <item.icon size={20} />
+              {item.label}
+            </button>
+          ))}
         </nav>
-    );
+      </aside>
+
+      {/* Content Area */}
+      <main className="flex-1">
+        {activeTab === 'dashboard' && <AdminStats />}
+        {activeTab === 'users' && <UserManagement />}
+        {activeTab === 'tasks' && <TaskManager />}
+        {activeTab === 'new-admin' && <NewAdminForm />}
+      </main>
+    </div>
+  );
 };
 
-const ContentRouter: React.FC<ContentProps & { currentView: string }> = ({ currentView, ...props }) => {
-    
-    let ContentComponent: React.FC<ContentProps> = FallbackContent as any;
-    let title = 'Bem-vindo';
-    let item: NavItem | undefined;
+// --- COMPONENTE PRINCIPAL ---
+export default function Profile() {
+  const [user, setUser] = useState<UserData | null>(null);
 
-    for (const key in navigation) {
-        item = navigation[key as UserRole].find(i => i.target === currentView);
-        if (item) {
-            title = item.name;
-            break;
-        }
+  useEffect(() => {
+    const storedUser = localStorage.getItem("usuario");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Erro ao ler usuário", e);
+      }
     }
-    
-    switch (currentView) {
-        case 'admin-dashboard': ContentComponent = AdminDashboard; break;
-        case 'admin-tasks': ContentComponent = AdminTasks; break;
-        case 'supplier-overview': ContentComponent = SupplierOverview; break;
-        case 'delivery-queue': ContentComponent = DeliveryQueue; break;
-        case 'client-catalog': ContentComponent = ClientCatalog; break;
-        default: 
-            ContentComponent = () => <FallbackContent {...props} target={currentView} name={item?.name || 'Página'} />;
-            break;
-    }
+  }, []);
 
+  if (!user) {
     return (
-        <main id="main-content" className="main-content-area flex-1 p-8 overflow-y-auto">
-             <div className="border-b pb-4 mb-6 flex justify-between items-center bg-gray-50 sticky top-0 z-0">
-                <h2 className="text-3xl font-semibold text-gray-800">{title}</h2>
-                <span className="px-3 py-1 text-sm font-medium rounded-full bg-indigo-100 text-indigo-700">
-                    Perfil: {props.currentUserType.charAt(0).toUpperCase() + props.currentUserType.slice(1)}
-                </span>
-            </div>
-            
-            <div className="content-wrapper">
-                <ContentComponent {...props} />
-            </div>
-        </main>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
     );
-};
+  }
 
-const Users: React.FC = () => {
-    const [currentUserType, setCurrentUserType] = useState<UserRole>('admin');
-    const [currentView, setCurrentView] = useState<string>('admin-dashboard');
-    const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
-    const [userId, setUserId] = useState<string | null>(null);
-    const [dbStatus, setDbStatus] = useState<string>('Aguardando Conexão...');
-    const [dbStatusClass, setDbStatusClass] = useState<string>('bg-yellow-100 text-yellow-700');
+  // Verifica se é admin pela presença do ID específico ou flag
+  const isAdmin = !!user.id_adm;
 
-    const appId = useMemo(() => 'dynamic-user-screen-app', []);
-    const firebaseConfig = useMemo(() => null, []); 
-    const initialAuthToken = useMemo(() => null, []);
-    
-    const firestore: FirestoreInterface = useMemo(() => {
-        if (!firebaseConfig) {
-            return { db: () => firebaseImports.getFirestore(), ...firebaseImports } as FirestoreInterface;
-        }
-        return { db: () => db, ...firebaseImports } as FirestoreInterface;
-    }, [firebaseConfig]);
+  return (
+    <div className="min-h-screen bg-gray-50 pt-10 pb-20 px-4 md:px-8">
+      <div className="max-w-7xl mx-auto">
+        <header className="mb-8">
+          <h1 className="text-3xl font-extrabold text-gray-900">
+            {isAdmin ? "Painel Administrativo" : "Meu Perfil"}
+          </h1>
+          <p className="text-gray-500 mt-1">
+            {isAdmin ? "Gerencie a plataforma e visualize métricas." : "Mantenha seus dados atualizados para agilizar suas compras."}
+          </p>
+        </header>
 
-    useEffect(() => {
-        if (!firebaseConfig) {
-            setDbStatus("Simulação de Dados (Offline)");
-            setDbStatusClass('bg-yellow-100 text-yellow-700');
-            setUserId(firebaseImports.signInAnonymously().user.uid);
-            setIsAuthReady(true);
-            return;
-        }
-    }, [firebaseConfig, initialAuthToken]);
-
-    useEffect(() => {
-        const firstTarget = navigation[currentUserType]?.[0]?.target || `${currentUserType}-dashboard`;
-        setCurrentView(firstTarget);
-    }, [currentUserType]);
-
-    const handleUserTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setCurrentUserType(e.target.value as UserRole);
-    };
-
-    const contentProps: ContentProps = { firestore, userId, appId, isAuthReady, currentUserType };
-
-    if (!isAuthReady) {
-        return (
-            <div className="flex justify-center items-center h-screen bg-gray-100">
-                <p className="text-xl font-medium text-gray-700">Conectando ao serviço de autenticação...</p>
-            </div>
-        );
-    }
-
-    return (
-        <div id="app-container" className="mt-30 flex flex-col min-h-screen font-sans">
-            <header className="flex items-center justify-between p-4 bg-white shadow-md z-10 sticky top-0 border-b border-gray-100">
-                <h1 className="text-2xl font-bold text-indigo-600 flex items-center">
-                    <Icon name="layout-dashboard" className="w-6 h-6 mr-2" />
-                    Dashboard Dinâmico
-                </h1>
-
-                <div className="flex items-center space-x-4">
-                    <span id="db-status" className={`px-3 py-1 text-xs font-semibold rounded-full transition duration-300 ${dbStatusClass}`}>
-                        {dbStatus}
-                    </span>
-
-                    <select id="user-selector" value={currentUserType} onChange={handleUserTypeChange} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="admin">👑 Admin</option>
-                        <option value="supplier">📦 Fornecedor</option>
-                        <option value="delivery">🛵 Entregador</option>
-                        <option value="client">👤 Cliente</option>
-                    </select>
-                    <Icon name="user-circle" className="w-8 h-8 text-gray-400" />
-                </div>
-            </header>
-
-            <div className="flex flex-1 bg-gray-50">
-                <Sidebar 
-                    userType={currentUserType} 
-                    currentView={currentView} 
-                    onViewChange={setCurrentView} 
-                />
-
-                <ContentRouter 
-                    currentView={currentView} 
-                    {...contentProps} 
-                />
-            </div>
-        </div>
-    );
-};
-
-export default Users;
+        {isAdmin ? <AdminPanel user={user} /> : <ClientProfile user={user} />}
+      </div>
+    </div>
+  );
+}

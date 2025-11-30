@@ -1,364 +1,310 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { 
+  FaFacebookF, FaInstagram, FaTwitter, FaLinkedinIn 
+} from "react-icons/fa";
+import { 
+  ShoppingBag, 
+  User, 
+  LogOut, 
+  ChevronDown, 
+  Menu,
+  ShieldCheck,
+  Package
+} from "lucide-react";
+
+// Componentes
 import Login from "./app/modules/login/Login";
 import Register from "./app/modules/register/Register";
 import Home from "./app/modules/home/Home";
-import logo from "./assets/img/logo_4.png";
-import { useState } from "react";
 import Promotion from "./app/modules/admin/promotion/Promotion";
-import { Link } from "react-router-dom";
 import Products from "./app/modules/admin/products/Products";
 import Buys from "./app/modules/buys/Buys";
 import Profile from "./app/modules/profile/Profile";
-import { FaFacebookF, FaInstagram, FaTwitter, FaLinkedinIn } from "react-icons/fa";
 import Sacola from "./app/modules/sacola/Sacola";
-import { CartProvider } from './app/context/CartContext';
 import Checkout from "./app/modules/checkout/Checkout";
+import { CartProvider, useCart } from './app/context/CartContext'; // Importe useCart
 
-function App() {
-  console.debug('[App] render');
-  const [openContactModal, setOpenContactModal] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [openAdmin, setOpenAdmin] = useState(false);
-  const isLogged = localStorage.getItem("token");
+import logo from "./assets/img/logo_4.png";
+import api from "./services/api";
+
+type Categoria = {
+  id_categoria: number;
+  nome_categoria: string;
+};
+
+type Usuario = {
+  id_cliente?: number;
+  id_adm?: number;
+  nome: string;
+  email: string;
+};
+
+// --- Componente de Navegação Extraído ---
+function Navigation() {
+  const navigate = useNavigate();
+  const { totalItems } = useCart(); // Hook do carrinho
+  
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  const [menuCategoriasOpen, setMenuCategoriasOpen] = useState(false);
+  const [menuAdminOpen, setMenuAdminOpen] = useState(false);
+  const [menuProfileOpen, setMenuProfileOpen] = useState(false);
   const [menuMobile, setMenuMobile] = useState(false);
+  const [openContactModal, setOpenContactModal] = useState(false);
+
+  useEffect(() => {
+    const fetchCategorias = async () => {
+      try {
+        const { data } = await api.get("/categorias");
+        setCategorias(data);
+      } catch (error) {
+        console.error("Erro ao buscar categorias:", error);
+      }
+    };
+
+    const carregarUsuario = () => {
+      const userJson = localStorage.getItem("usuario");
+      if (userJson) {
+        try {
+          const userObj = JSON.parse(userJson);
+          setUsuario(userObj);
+          if (userObj.id_adm || userObj.email.includes('admin')) {
+            setIsAdmin(true);
+          }
+        } catch (e) {
+          console.error("Erro ao ler usuário", e);
+        }
+      }
+    };
+
+    fetchCategorias();
+    carregarUsuario();
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("cart_items");
+    navigate("/login");
+    window.location.reload();
+  };
+
+  const navLinkStyle = "text-white font-medium hover:text-blue-200 transition-colors duration-200 px-3 py-2 rounded-md text-sm flex items-center gap-2";
+  const dropdownItemStyle = "block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer w-full text-left";
 
   return (
-    <div className="min-h-screen flex flex-col !bg-gray-100">
-      <div className="flex-grow">
-        <CartProvider>
-        <nav className="!bg-[linear-gradient(135deg,#0B4878,#2F6FA0,#78A9C9)] fixed top-0 left-0 w-full z-50 shadow-lg">
-          <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
-            <div className="flex items-center mt-2">
-              <img
-                src={logo}
-                alt="logo"
-                className="w-48 h-16 md:w-60 md:h-20"
-              />
+    <>
+      <nav className="bg-gradient-to-r from-[#0B4878] via-[#2F6FA0] to-[#78A9C9] fixed top-0 left-0 w-full z-50 shadow-xl border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            
+            {/* LOGO */}
+            <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => navigate("/home")}>
+              <img src={logo} alt="Freshness" className="h-14 w-auto hover:opacity-90 transition" />
             </div>
 
-            <ul className="hidden md:flex items-center gap-8 text-sm text-gray-600">
-              <li className="relative">
+            {/* MENU CENTRAL */}
+            <div className="hidden md:flex items-center space-x-2">
+              <div className="relative group">
                 <button
-                  onClick={() => setOpen(!open)}
-                  className="flex items-center gap-1 !bg-blue-100 px-3 py-2 rounded-lg hover:!bg-blue-200 transition"
+                  className={`${navLinkStyle} bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10`}
+                  onMouseEnter={() => setMenuCategoriasOpen(true)}
+                  onClick={() => setMenuCategoriasOpen(!menuCategoriasOpen)}
                 >
+                  <Menu size={18} />
                   Categorias
+                  <ChevronDown size={14} className={`transform transition-transform ${menuCategoriasOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {open && (
-                  <ul className="absolute left-0 mt-2 w-40 !bg-white shadow-lg rounded-lg p-2 flex flex-col gap-1 z-50">
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Hortifruti
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Açougue & Peixaria
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Frios & Laticínios
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Congelados
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Padaria & Confeitaria
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Mercearia
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Bebidas
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Limpeza
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Higiene & Cuidados Pessoais
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      Pet
-                    </li>
-                  </ul>
-                )}
-              </li>
-
-              <li>
-                <Link to="/home" className="!text-white hover:text-blue-300">
-                  Home
-                </Link>
-              </li>
-
-              <li>
-                <Link to="/buys" className="!text-white hover:text-blue-300">
-                  Produtos
-                </Link>
-              </li>
-
-              <li className="relative">
-                <span
-                  className="text-white hover:text-blue-300 cursor-pointer"
-                  onClick={() => setOpenContactModal(true)}
-                >
-                  Contact
-                </span>
-
-                {openContactModal && (
-                  <div className="absolute top-7 left-0 !bg-white border border-gray-300 shadow-lg rounded-lg p-4 w-48 z-50">
-                    <p className="font-semibold mb-2">Contatos</p>
-                    <p className="text-sm">📧 email@email.com</p>
-                    <p className="text-sm">📞 (11) 99999-9999</p>
-
-                    <button
-                      className="mt-3 text-blue-600 text-sm hover:underline"
-                      onClick={() => setOpenContactModal(false)}
-                    >
-                      fechar
-                    </button>
+                {menuCategoriasOpen && (
+                  <div 
+                    className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl py-2 z-50 border border-gray-100 ring-1 ring-black ring-opacity-5 animate-in fade-in zoom-in-95 duration-100"
+                    onMouseLeave={() => setMenuCategoriasOpen(false)}
+                  >
+                    {categorias.map((cat) => (
+                      <Link 
+                        key={cat.id_categoria}
+                        to={`/buys?categoria=${encodeURIComponent(cat.nome_categoria)}`}
+                        className={dropdownItemStyle}
+                        onClick={() => setMenuCategoriasOpen(false)}
+                      >
+                        {cat.nome_categoria}
+                      </Link>
+                    ))}
                   </div>
                 )}
-              </li>
+              </div>
 
-              <li className="relative">
-                <button
-                  onClick={() => setOpenAdmin(!openAdmin)}
-                  className="flex items-center gap-1 !bg-blue-100 px-3 py-2 rounded-lg hover:!bg-blue-200 transition"
-                >
-                  Administração
+              <Link to="/home" className={navLinkStyle}>Home</Link>
+              <Link to="/buys" className={navLinkStyle}>Produtos</Link>
+              
+              {isAdmin && (
+                <div className="relative group">
+                  <button
+                    className={`${navLinkStyle} text-yellow-300 hover:text-yellow-100`}
+                    onMouseEnter={() => setMenuAdminOpen(true)}
+                    onClick={() => setMenuAdminOpen(!menuAdminOpen)}
+                  >
+                    <ShieldCheck size={18} />
+                    Admin
+                  </button>
+                  {menuAdminOpen && (
+                    <div 
+                      className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-2xl py-2 z-50 border border-gray-100"
+                      onMouseLeave={() => setMenuAdminOpen(false)}
+                    >
+                      <Link to="/promotion" className={dropdownItemStyle}>Cadastrar Promoção</Link>
+                      <Link to="/products" className={dropdownItemStyle}>Cadastrar Produtos</Link>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button onClick={() => setOpenContactModal(true)} className={navLinkStyle}>Contato</button>
+            </div>
+
+            {/* MENU DIREITO */}
+            <div className="hidden md:flex items-center gap-4">
+              {/* Carrinho com Badge */}
+              <div className="flex items-center bg-white/10 rounded-full p-1 border border-white/10 relative">
+                <Link to="/sacola" className="p-2 text-white hover:text-green-300 transition relative" title="Sacola">
+                  <ShoppingBag size={20} />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-md border-2 border-[#0B4878]">
+                      {totalItems}
+                    </span>
+                  )}
+                </Link>
+              </div>
+
+              {/* Perfil */}
+              <div 
+                className="relative ml-2"
+                onMouseEnter={() => setMenuProfileOpen(true)}
+                onMouseLeave={() => setMenuProfileOpen(false)}
+              >
+                <button className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full bg-white text-blue-900 shadow-md hover:shadow-lg transition-all border border-blue-100 group">
+                  <div className="bg-blue-100 p-1.5 rounded-full group-hover:bg-blue-200 transition">
+                    <User size={20} className="text-blue-700" />
+                  </div>
+                  <div className="flex flex-col items-start mr-1">
+                    <span className="text-xs text-gray-500 font-medium leading-none mb-0.5">Olá,</span>
+                    <span className="text-sm font-bold leading-none max-w-[100px] truncate">
+                      {usuario ? usuario.nome.split(' ')[0] : 'Visitante'}
+                    </span>
+                  </div>
+                  <ChevronDown size={14} className="text-gray-400" />
                 </button>
 
-                {openAdmin && (
-                  <ul className="absolute left-0 mt-2 w-40 !bg-white shadow-lg rounded-lg p-2 flex flex-col gap-1 z-50">
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      <Link to="/promotion">Cadastrar Promoção</Link>
-                    </li>
-                    <li className="px-3 py-2 rounded hover:!bg-gray-100 cursor-pointer">
-                      <Link to="/products">Cadastrar Produtos</Link>
-                    </li>
-                  </ul>
+                {menuProfileOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl py-2 z-50 border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="px-4 py-3 border-b border-gray-100 mb-2">
+                      <p className="text-sm text-gray-500">Logado como</p>
+                      <p className="text-sm font-bold text-gray-900 truncate">{usuario?.email}</p>
+                    </div>
+                    <Link to="/profile" className={`${dropdownItemStyle} flex items-center gap-2`}><User size={16} /> Meu Perfil</Link>
+                    <Link to="/checkout" className={`${dropdownItemStyle} flex items-center gap-2`}><Package size={16} /> Meus Pedidos</Link>
+                    <div className="border-t border-gray-100 mt-2 pt-2">
+                      <button onClick={handleLogout} className={`${dropdownItemStyle} text-red-600 hover:bg-red-50 flex items-center gap-2`}><LogOut size={16} /> Sair</button>
+                    </div>
+                  </div>
                 )}
-              </li>
-            </ul>
-
-            <div className="hidden md:flex items-center gap-5 text-gray-500">
-              <Link to="/profile">
-  <button className="hover:text-blue-300">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-7 text-blue-500"
-    >
-      <circle cx="12" cy="7.5" r="4" />
-      <path d="M5 21c0-4.5 3.5-8 7-8s7 3.5 7 8" />
-    </svg>
-  </button>
-</Link>
-
-
-              <Link to="/sacola" className="relative">
-                <button className="!hover:text-blue-300">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="size-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 1.5 0Z"
-                    />
-                  </svg>
-                </button>
-              </Link>
-
-              <Link to="/checkout" className="relative">
-                <button className="hover:text-blue-300">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="size-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
-                    />
-                  </svg>
-                </button>
-              </Link>
+              </div>
             </div>
 
-            <button
-              className="md:hidden text-white"
-              onClick={() => setMenuMobile(!menuMobile)}
-            >
-              ☰
-            </button>
+            {/* Mobile */}
+            <div className="md:hidden flex items-center">
+              <button onClick={() => setMenuMobile(!menuMobile)} className="text-white hover:text-gray-200 p-2 relative">
+                <Menu size={28} />
+                {totalItems > 0 && (
+                    <span className="absolute top-1 right-0 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                      {totalItems}
+                    </span>
+                  )}
+              </button>
+            </div>
           </div>
-
-          {menuMobile && (
-            <div className="md:hidden !bg-blue-900 !text-white p-4 flex flex-col gap-4">
-              <Link to="/home" onClick={() => setMenuMobile(false)}>
-                Home
-              </Link>
-              <Link to="/buys" onClick={() => setMenuMobile(false)}>
-                Produtos
-              </Link>
-
-              <button
-                className="!bg-blue-700 p-2 rounded"
-                onClick={() => setOpen(!open)}
-              >
-                Categorias
-              </button>
-
-              {open && (
-                <div className="flex flex-col gap-1 !bg-blue-800 p-3 rounded">
-                  <span>Hortifruti</span>
-                  <span>Açougue & Peixaria</span>
-                  <span>Frios & Laticínios</span>
-                  <span>Congelados</span>
-                  <span>Padaria & Confeitaria</span>
-                  <span>Mercearia</span>
-                  <span>Bebidas</span>
-                  <span>Limpeza</span>
-                  <span>Higiene & Cuidados Pessoais</span>
-                  <span>Pet</span>
-                </div>
-              )}
-
-              <button
-                className="!bg-blue-700 p-2 rounded"
-                onClick={() => setOpenAdmin(!openAdmin)}
-              >
-                Administração
-              </button>
-
-              {openAdmin && (
-                <div className="flex flex-col gap-2 !bg-blue-800 p-3 rounded">
-                  <Link to="/promotion">Cadastrar Promoção</Link>
-                  <Link to="/products">Cadastrar Produtos</Link>
-                </div>
-              )}
-
-              <button
-                className="!bg-blue-700 p-2 rounded"
-                onClick={() => setOpenContactModal(!openContactModal)}
-              >
-                Contact
-              </button>
-
-              {openContactModal && (
-                <div className="!bg-blue-800 p-3 rounded text-sm">
-                  <p className="font-semibold mb-2">Contatos</p>
-                  <p>📧 email@email.com</p>
-                  <p>📞 (11) 99999-9999</p>
-                </div>
-              )}
-            </div>
-          )}
-        </nav>
-
-        <div>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                isLogged ? <Navigate to="/home" /> : <Navigate to="/login" />
-              }
-            />
-
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-
-            <Route
-              path="/home"
-              element={isLogged ? <Home /> : <Navigate to="/login" />}
-            />
-            <Route path="/promotion" element={<Promotion />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/buys" element={<Buys />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/sacola" element={<Sacola />} />
-            <Route path="/checkout" element={<Checkout />} />
-          </Routes>
         </div>
-       </CartProvider>
 
+        {/* Menu Mobile Expandido */}
+        {menuMobile && (
+          <div className="md:hidden bg-[#0B4878] text-white px-4 pt-2 pb-6 shadow-inner space-y-3">
+            <Link to="/home" className="block py-2 border-b border-white/10" onClick={() => setMenuMobile(false)}>Home</Link>
+            <Link to="/buys" className="block py-2 border-b border-white/10" onClick={() => setMenuMobile(false)}>Produtos</Link>
+            <Link to="/sacola" className="block py-2 border-b border-white/10 flex justify-between" onClick={() => setMenuMobile(false)}>
+              Minha Sacola <span className="bg-red-500 text-xs px-2 py-0.5 rounded-full">{totalItems}</span>
+            </Link>
+            <Link to="/checkout" className="block py-2 border-b border-white/10" onClick={() => setMenuMobile(false)}>Meus Pedidos</Link>
+            <button onClick={handleLogout} className="w-full mt-4 bg-red-600/80 py-2 rounded text-center font-bold">Sair</button>
+          </div>
+        )}
+      </nav>
+
+      {/* Modal Contato */}
+      {openContactModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] backdrop-blur-sm">
+          <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4 border-t-4 border-blue-500">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Entre em Contato</h3>
+            <div className="space-y-3 text-gray-600">
+              <p>📧 suporte@freshness.com</p>
+              <p>📞 (11) 99999-8888</p>
+            </div>
+            <button onClick={() => setOpenContactModal(false)} className="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg">Fechar</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// --- Componente Principal ---
+function App() {
+  const isLogged = !!localStorage.getItem("token");
+
+  if (!isLogged) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
+      <div className="flex-grow">
+        <CartProvider>
+          <Navigation />
+          <div className="pt-24">
+            <Routes>
+              <Route path="/login" element={<Navigate to="/home" replace />} />
+              <Route path="/register" element={<Navigate to="/home" replace />} />
+              <Route path="/" element={<Navigate to="/home" replace />} />
+              
+              <Route path="/home" element={<Home />} />
+              <Route path="/promotion" element={<Promotion />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/buys" element={<Buys />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/sacola" element={<Sacola />} />
+              <Route path="/checkout" element={<Checkout />} />
+              
+              <Route path="*" element={<Navigate to="/home" replace />} />
+            </Routes>
+          </div>
+        </CartProvider>
       </div>
 
-      <footer className="!bg-[linear-gradient(135deg,#0B4878,#2F6FA0,#78A9C9)] text-white py-8 mt-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between">
-          <div className="mb-6 md:mb-0">
-            <h3 className="text-lg font-semibold mb-2">Navegação</h3>
-            <div className="flex flex-col md:flex-row gap-4">
-              <Link to="/home" className="hover:text-blue-300">
-                Home
-              </Link>
-              <Link to="/buys" className="hover:text-blue-300">
-                Produtos
-              </Link>
-              <Link to="/promotion" className="hover:text-blue-300">
-                Promoções
-              </Link>
-              <Link to="/products" className="hover:text-blue-300">
-                Administração
-              </Link>
-            </div>
-          </div>
-
-          <div className="mb-6 md:mb-0">
-            <h3 className="text-lg font-semibold mb-2">Siga-nos</h3>
-            <div className="flex space-x-4">
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FaFacebookF className="w-6 h-6 hover:text-blue-300" />
-              </a>
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FaTwitter className="w-6 h-6 hover:text-blue-300" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FaInstagram className="w-6 h-6 hover:text-blue-300" />
-              </a>
-              <a
-                href="https://linkedin.com"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FaLinkedinIn className="w-6 h-6 hover:text-blue-300" />
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm">
-              © {new Date().getFullYear()} Supermercado. Todos os direitos
-              reservados.
-            </p>
-          </div>
+      <footer className="bg-gradient-to-br from-[#0B4878] to-[#062c4d] text-white py-12 mt-auto border-t-4 border-green-500">
+        <div className="max-w-7xl mx-auto px-6 text-center md:text-left">
+          <p>© {new Date().getFullYear()} Freshness Supermercado.</p>
         </div>
       </footer>
-   </div>
+    </div>
   );
 }
 

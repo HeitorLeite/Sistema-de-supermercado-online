@@ -42,33 +42,68 @@ app.post("/cadastro", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   try {
-    const { email, senha } = req.body;
+    const { email, senha, isAdmin } = req.body; // Recebe a flag isAdmin
 
-    const loginCliente = await prisma.clientes.findUnique({
-      where: {
-        email: String(email),
-      },
-    });
-    if (!loginCliente) {
-      return res.status(404).json({ erro: "Cliente não encontrado." });
+    if (isAdmin) {
+      // --- LÓGICA DE ADMINISTRADOR ---
+      const loginAdm = await prisma.administradores.findUnique({
+        where: {
+          email: String(email),
+        },
+      });
+
+      if (!loginAdm) {
+        return res.status(404).json({ erro: "Administrador não encontrado." });
+      }
+
+      if (loginAdm.senha !== String(senha)) {
+        return res.status(401).json({ erro: "Senha incorreta." });
+      }
+
+      const token = jwt.sign(
+        {
+          id: loginAdm.id_adm,
+          email: loginAdm.email,
+          role: "admin", // Identificador extra no token
+        },
+        process.env.JWT_SECRET || "sua_chave_secreta",
+        { expiresIn: "1d" }
+      );
+
+      const { senha: _, ...admSemSenha } = loginAdm;
+
+      // Retornamos 'cliente' para manter compatibilidade com o front, ou você pode ajustar o front para ler 'usuario'
+      res.status(200).json({ cliente: admSemSenha, token: token });
+    } else {
+      // --- LÓGICA DE CLIENTE (PADRÃO) ---
+      const loginCliente = await prisma.clientes.findUnique({
+        where: {
+          email: String(email),
+        },
+      });
+
+      if (!loginCliente) {
+        return res.status(404).json({ erro: "Cliente não encontrado." });
+      }
+
+      if (loginCliente.senha !== String(senha)) {
+        return res.status(401).json({ erro: "Senha incorreta." });
+      }
+
+      const token = jwt.sign(
+        {
+          id: loginCliente.id_cliente,
+          email: loginCliente.email,
+          role: "cliente",
+        },
+        process.env.JWT_SECRET || "sua_chave_secreta",
+        { expiresIn: "1d" }
+      );
+
+      const { senha: _, ...clienteSemSenha } = loginCliente;
+
+      res.status(200).json({ cliente: clienteSemSenha, token: token });
     }
-
-    if (loginCliente.senha !== String(senha)) {
-      return res.status(401).json({ erro: "Senha incorreta." });
-    }
-
-    const token = jwt.sign(
-      {
-        id: loginCliente.id_cliente,
-        email: loginCliente.email,
-      },
-      process.env.JWT_SECRET || "sua_chave_secreta",
-      { expiresIn: "1d" }
-    );
-
-    const { senha: _, ...clienteSemSenha } = loginCliente;
-
-    res.status(200).json({ cliente: clienteSemSenha, token: token });
   } catch (error) {
     console.error("Erro ao efetuar login:", error);
     res.status(500).json({
@@ -300,6 +335,37 @@ app.put("/produtos/:id_produto", async (req, res) => {
     console.error("Erro ao atualizar informações do produto:", error);
     res.status(500).json({
       erro: "Erro interno ao atualizar informações do produto",
+      message: error.message,
+    });
+  }
+});
+
+app.delete("/produtos/:id_produto", async (req, res) => {
+  try {
+    const { id_produto } = req.params;
+    const produtoId = parseInt(id_produto);
+
+    // Tenta deletar o produto
+    await prisma.produtos.delete({
+      where: {
+        id_produto: produtoId,
+      },
+    });
+
+    res.status(200).json({ message: "Produto removido com sucesso" });
+  } catch (error) {
+    console.error("Erro ao remover produto:", error);
+
+    // Tratamento especial para erro de chave estrangeira (P2003) do Prisma
+    // Isso acontece se tentar apagar um produto que já tem vendas ou pedidos registrados
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        erro: "Não é possível remover este produto pois ele já possui vendas ou pedidos associados.",
+      });
+    }
+
+    res.status(500).json({
+      erro: "Erro interno ao remover produto",
       message: error.message,
     });
   }

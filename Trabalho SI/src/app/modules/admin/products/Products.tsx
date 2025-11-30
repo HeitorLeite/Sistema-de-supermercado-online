@@ -1,66 +1,110 @@
-import { useState, useMemo } from "react"; 
+import { useState, useEffect, useMemo } from "react";
+import { CheckCircle, AlertCircle, X } from "lucide-react"; // Ícones para as mensagens
+import api from "../../../../services/api";
 
-type Categoria = { id_categoria: number; nome_categoria: string };
-
-const api = {
-  get: async (path: string) => {
-    if (path === "/categorias") {
-      return { data: [{ id_categoria: 1, nome_categoria: "Hortifruti" }] as Categoria[] };
-    }
-    return { data: [] };
-  },
-  post: async (path: string, data: any) => {
-    if (path === "/categorias") {
-      return { data: { id_categoria: Math.floor(Math.random() * 1000) + 10, ...data } as Categoria };
-    }
-    if (path === "/produtos") {
-      return { data: { id_produto: Math.floor(Math.random() * 1000) + 100, ...data } };
-    }
-    return { data: {} };
-  },
+type Categoria = {
+  id_categoria: number;
+  nome_categoria: string;
 };
 
 type Product = {
-  id: number;
-  title: string;
-  price: string;
-  image: string;
+  id_produto: number;
+  nome: string;
+  preco_venda: number;
+  imagem: string;
   category: string;
   descricao: string;
-  estoque: string;
+  estoque: number;
 };
 
-const CATEGORIES = ["Hortifruti", "Açougue & Peixaria", "Bebidas", "Padaria"];
+// Tipo para o estado da notificação
+type NotificationType = {
+  message: string;
+  type: "success" | "error" | "warning";
+} | null;
 
-function ProductManagement() { 
+function ProductManagement() {
+  // --- Estados de Dados ---
   const [products, setProducts] = useState<Product[]>([]);
+  const [categoriasDb, setCategoriasDb] = useState<Categoria[]>([]);
+
+  // --- Estados do Formulário ---
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [image, setImage] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
-  const [categoriasDb, setCategoriasDb] = useState<string[]>([]); 
+  const [categoryInput, setCategoryInput] = useState("");
   const [descricao, setDescricao] = useState("");
   const [estoque, setEstoque] = useState("");
 
-  const adicionarProduto = async () => {
-    if (!title || !price || !image || !descricao || !estoque) return;
+  // --- Estado de UI (Notificações) ---
+  const [notification, setNotification] = useState<NotificationType>(null);
 
-    let id_categoria;
+  // Função para mostrar notificação e limpar após 3 segundos
+  const showNotification = (message: string, type: "success" | "error" | "warning") => {
+    setNotification({ message, type });
+    setTimeout(() => {
+      setNotification(null);
+    }, 4000);
+  };
+
+  useEffect(() => {
+    carregarDados();
+  }, []);
+
+  const carregarDados = async () => {
     try {
-      const resCategorias = await api.get("/categorias");
-      const categoriasApi: Categoria[] = resCategorias.data as Categoria[];
-      
-      let categoriaObj: Categoria | undefined = categoriasApi.find(cat => cat.nome_categoria === category);
-      
-      if (!categoriaObj) {
-        const resNovaCat = await api.post("/categorias", { nome_categoria: category });
-        categoriaObj = resNovaCat.data as Categoria;
-      }
-      
-      // Correção: Usando o operador de asserção não nula (!) para resolver o erro do TypeScript
-      id_categoria = categoriaObj!.id_categoria; 
+      const [resCategorias, resProdutos] = await Promise.all([
+        api.get("/categorias"),
+        api.get("/produtos")
+      ]);
 
-      const response = await api.post("/produtos", {
+      setCategoriasDb(resCategorias.data);
+
+      const produtosFormatados = resProdutos.data.map((p: any) => ({
+        id_produto: p.id_produto,
+        nome: p.nome,
+        preco_venda: Number(p.preco_venda),
+        imagem: p.imagem,
+        category: p.categoria ? p.categoria.nome_categoria : "Outros",
+        descricao: p.descricao,
+        estoque: Number(p.estoque)
+      }));
+
+      setProducts(produtosFormatados);
+
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      showNotification("Não foi possível carregar os dados do servidor.", "error");
+    }
+  };
+
+  const adicionarProduto = async () => {
+    if (!title || !price || !image || !descricao || !estoque || !categoryInput) {
+      showNotification("Por favor, preencha todos os campos obrigatórios.", "warning");
+      return;
+    }
+
+    try {
+      let id_categoria: number;
+
+      // 1. Lógica de Categoria (Existente ou Nova)
+      const categoriaExistente = categoriasDb.find(
+        (cat) => cat.nome_categoria.toLowerCase() === categoryInput.toLowerCase()
+      );
+
+      if (categoriaExistente) {
+        id_categoria = categoriaExistente.id_categoria;
+      } else {
+        const resNovaCat = await api.post("/categorias", {
+          nome_categoria: categoryInput,
+        });
+        const novaCategoria = resNovaCat.data;
+        id_categoria = novaCategoria.id_categoria;
+        setCategoriasDb([...categoriasDb, novaCategoria]);
+      }
+
+      // 2. Cadastro do Produto
+      await api.post("/produtos", {
         nome: title,
         descricao,
         id_categoria,
@@ -68,24 +112,59 @@ function ProductManagement() {
         estoque: parseInt(estoque),
         imagem: image,
       });
-      const novoProduto = response.data;
-      setProducts([...products, {
-        id: novoProduto.id_produto,
-        title: novoProduto.nome,
-        price: novoProduto.preco_venda.toFixed(2), 
-        image: novoProduto.imagem,
-        category,
-        descricao: novoProduto.descricao,
-        estoque: novoProduto.estoque?.toString() || "0",
-      }]);
+
+      // 3. Sucesso
+      showNotification("Produto cadastrado com sucesso!", "success");
+
+      // Limpar campos
       setTitle("");
       setPrice("");
       setImage("");
       setDescricao("");
       setEstoque("");
+      setCategoryInput("");
+      
+      // Recarregar lista
+      const resProdutos = await api.get("/produtos");
+      const produtosFormatados = resProdutos.data.map((p: any) => ({
+        id_produto: p.id_produto,
+        nome: p.nome,
+        preco_venda: Number(p.preco_venda),
+        imagem: p.imagem,
+        category: p.categoria ? p.categoria.nome_categoria : "Outros",
+        descricao: p.descricao,
+        estoque: Number(p.estoque)
+      }));
+      setProducts(produtosFormatados);
+
     } catch (error) {
-      alert("Erro ao cadastrar produto ou categoria!");
-      console.error(error);
+      console.error("Erro ao cadastrar:", error);
+      showNotification("Erro ao cadastrar produto. Verifique os dados e tente novamente.", "error");
+    }
+  };
+
+  const removerProduto = async (id: number) => {
+    // Confirmação de segurança
+    if (!window.confirm("Tem certeza que deseja remover este produto? Essa ação não pode ser desfeita.")) {
+      return;
+    }
+
+    try {
+      // Chama a API para deletar
+      await api.delete(`/produtos/${id}`);
+
+      // Atualiza a lista visualmente removendo o item deletado
+      const novaLista = products.filter((p) => p.id_produto !== id);
+      setProducts(novaLista);
+
+      showNotification("Produto removido com sucesso!", "success");
+    } catch (error: any) {
+      console.error("Erro ao remover:", error);
+      
+      // Tenta pegar a mensagem de erro específica do backend (ex: erro de chave estrangeira)
+      const mensagemErro = error.response?.data?.erro || "Erro ao tentar remover o produto. Verifique sua conexão.";
+      
+      showNotification(mensagemErro, "error");
     }
   };
 
@@ -99,10 +178,35 @@ function ProductManagement() {
     }, {} as Record<string, Product[]>);
   }, [products]);
 
-
   return (
-    <div className="mt-30 min-h-screen bg-gray-50 p-4 sm:p-10 font-sans">
+    <div className="mt-30 min-h-screen bg-gray-50 p-4 sm:p-10 font-sans relative">
+      
+      {/* --- COMPONENTE DE NOTIFICAÇÃO (TOAST) --- */}
+      {notification && (
+        <div 
+          className={`
+            fixed top-24 right-5 z-50 flex items-center p-4 mb-4 text-white rounded-lg shadow-2xl transition-all duration-500 ease-in-out transform translate-y-0
+            ${notification.type === 'success' ? 'bg-green-500' : notification.type === 'error' ? 'bg-red-500' : 'bg-yellow-500'}
+          `}
+          role="alert"
+        >
+          <div className="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg bg-white/20">
+            {notification.type === 'success' && <CheckCircle className="w-5 h-5" />}
+            {notification.type === 'error' && <X className="w-5 h-5" />}
+            {notification.type === 'warning' && <AlertCircle className="w-5 h-5" />}
+          </div>
+          <div className="ml-3 text-sm font-semibold pr-4">{notification.message}</div>
+          <button 
+            type="button" 
+            className="ml-auto -mx-1.5 -my-1.5 bg-transparent text-white rounded-lg p-1.5 hover:bg-white/20 inline-flex h-8 w-8" 
+            onClick={() => setNotification(null)}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
+      {/* --- FORMULÁRIO --- */}
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-xl mx-auto border-t-8 border-blue-500/80 transform hover:shadow-blue-300/50 transition duration-500">
         
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6 border-b pb-3">
@@ -113,33 +217,19 @@ function ProductManagement() {
         </h2>
         
         <div className="space-y-4">
-          
           <div className="relative">
-            <select
-              value={category}
-              onChange={async (e) => {
-                const selected = e.target.value;
-                setCategory(selected);
-                try {
-                  const resCategorias = await api.get("/categorias");
-                  const categoriasApi: Categoria[] = resCategorias.data as Categoria[];
-                  const categoriaObj = categoriasApi.find((cat: any) => cat.nome_categoria === selected);
-                  if (!categoriaObj) {
-                    await api.post("/categorias", { nome_categoria: selected });
-                  }
-                } catch (error) {
-                  console.error("Erro ao verificar/criar categoria", error);
-                }
-              }}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 bg-white appearance-none pr-10 text-gray-700"
-            >
-              {CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+            <input
+              list="categorias-list"
+              value={categoryInput}
+              onChange={(e) => setCategoryInput(e.target.value)}
+              placeholder="📂 Selecione ou digite uma Nova Categoria"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 bg-white text-gray-700 placeholder-gray-400"
+            />
+            <datalist id="categorias-list">
+              {categoriasDb.map((cat) => (
+                <option key={cat.id_categoria} value={cat.nome_categoria} />
               ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-            </div>
+            </datalist>
           </div>
 
           <input 
@@ -163,6 +253,7 @@ function ProductManagement() {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="💰 Preço (ex: 15.99)"
+              step="0.01"
               className="w-1/2 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
             />
             <input
@@ -191,8 +282,17 @@ function ProductManagement() {
         </div>
       </div>
 
+      {/* --- LISTAGEM DE PRODUTOS --- */}
       <div className="mt-16 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
+        {Object.keys(groupedProducts).length === 0 && (
+          <div className="flex flex-col items-center justify-center bg-white p-10 rounded-xl shadow-lg mt-12 max-w-md mx-auto">
+            <p className="text-center text-gray-600 font-medium">
+              Nenhum produto cadastrado. Use o formulário acima para começar!
+            </p>
+          </div>
+        )}
+
         {Object.keys(groupedProducts).map(categoryName => (
           
           <div key={categoryName} className="mb-14">
@@ -208,14 +308,14 @@ function ProductManagement() {
               {groupedProducts[categoryName].map(product => (
 
                 <div 
-                  key={product.id} 
+                  key={product.id_produto} 
                   className="bg-white rounded-xl shadow-lg p-5 transition duration-300 hover:shadow-2xl hover:border-blue-500 border border-gray-100 flex flex-col space-y-4"
                 >
                   
-                  <div className="flex justify-center h-48 overflow-hidden rounded-xl border border-gray-100">
+                  <div className="flex justify-center h-48 overflow-hidden rounded-xl border border-gray-100 relative group">
                     <img 
-                      src={product.image} 
-                      alt={product.title} 
+                      src={product.imagem} 
+                      alt={product.nome} 
                       onError={(e) => {
                         (e.target as HTMLImageElement).onerror = null; 
                         (e.target as HTMLImageElement).src = `https://placehold.co/400x300/e0e0e0/5c5c5c?text=Sem+Imagem`;
@@ -225,22 +325,22 @@ function ProductManagement() {
                   </div>
 
                   <div className="flex-grow">
-                    <p className="font-semibold text-xl text-gray-900 leading-tight truncate">{product.title}</p>
+                    <p className="font-semibold text-xl text-gray-900 leading-tight truncate" title={product.nome}>{product.nome}</p>
                     <p className="text-sm text-gray-500 mt-1 line-clamp-2" title={product.descricao}>{product.descricao || 'Sem descrição.'}</p>
                   </div>
                   
                   <div className="flex justify-between items-end border-t pt-3">
                     <p className="text-3xl font-black text-green-600">
-                      R$ {product.price}
+                      R$ {product.preco_venda.toFixed(2)}
                     </p>
                     <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                      Estoque: {product.estoque}
+                      Est: {product.estoque}
                     </span>
                   </div>
               
                   <button
-                    onClick={() => console.log(`Remover produto ${product.id}`)}
-                    className="mt-4 bg-red-500 text-white p-3 rounded-xl text-md font-medium hover:bg-red-600 transition shadow-sm"
+                    onClick={() => removerProduto(product.id_produto)}
+                    className="mt-4 bg-red-50 text-red-600 border border-red-200 p-3 rounded-xl text-md font-medium hover:bg-red-600 hover:text-white transition shadow-sm"
                   >
                     Remover Produto
                   </button>
@@ -249,17 +349,6 @@ function ProductManagement() {
             </div>
           </div>
         ))}
-
-        {products.length === 0 && (
-          <div className="flex flex-col items-center justify-center bg-white p-10 rounded-xl shadow-lg mt-12 max-w-md mx-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            <p className="text-center text-gray-600 font-medium">
-              Nenhum produto cadastrado. Use o formulário acima para começar a popular o seu catálogo!
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
