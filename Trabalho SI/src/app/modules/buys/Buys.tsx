@@ -60,7 +60,6 @@ const Notification = ({ message, type, onClose }: { message: string, type: 'succ
   );
 };
 
-// --- CONTROLE DE QUANTIDADE ---
 const QuantityControl = ({ 
   product, 
   addToCart, 
@@ -97,7 +96,7 @@ const QuantityControl = ({
     <div className="flex items-center space-x-2 p-1 border border-blue-200 rounded-full bg-blue-50 w-full justify-between mt-auto">
       <button 
         onClick={handleDecrement}
-        className="bg-white border border-blue-500 text-blue-500 rounded-full h-7 w-7 flex items-center justify-center hover:bg-blue-100 transition text-xl font-bold p-0 leading-none shadow-sm"
+        className="botaoColor bg-white border border-blue-500 text-blue-500 rounded-full h-7 w-7 flex items-center justify-center hover:bg-blue-100 transition text-xl font-bold p-0 leading-none shadow-sm"
         aria-label="Diminuir quantidade"
       >
         −
@@ -105,7 +104,7 @@ const QuantityControl = ({
       <span className="text-sm font-bold text-center text-gray-700 mx-1">{quantity}</span>
       <button 
         onClick={handleIncrement}
-        className={`rounded-full h-7 w-7 flex items-center justify-center transition text-xl font-bold p-0 leading-none shadow-sm ${quantity >= product.estoque ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+        className={`botaoColor rounded-full h-7 w-7 flex items-center justify-center transition text-xl font-bold p-0 leading-none shadow-sm ${quantity >= product.estoque ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
         aria-label="Aumentar quantidade"
       >
         +
@@ -125,7 +124,6 @@ const QuantityControl = ({
   );
 };
 
-// --- PÁGINA PRINCIPAL ---
 function ProductCatalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -134,7 +132,6 @@ function ProductCatalog() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchParams] = useSearchParams();
   
-  // Hooks do Carrinho e Notificação
   const { addToCart } = useCart();
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 

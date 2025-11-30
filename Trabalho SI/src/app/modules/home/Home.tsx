@@ -125,14 +125,14 @@ const QuantityControl = ({
       <div className="flex items-center justify-between p-1.5 border border-gray-200 rounded-lg bg-gray-50">
         <button 
           onClick={handleDecrement}
-          className="bg-white border border-gray-300 text-gray-200 rounded-md h-7 w-7 flex items-center justify-center hover:bg-gray-100 transition font-bold shadow-sm"
+          className="botaoColor bg-white border border-gray-300 text-gray-200 rounded-md h-7 w-7 flex items-center justify-center hover:bg-gray-100 transition font-bold shadow-sm"
         >
           -
         </button>
         <span className="text-sm font-bold text-gray-800">{quantity}</span>
         <button 
           onClick={handleIncrement}
-          className={`rounded-md h-7 w-7 flex items-center justify-center transition font-bold shadow-sm ${
+          className={`botaoColor rounded-md h-7 w-7 flex items-center justify-center transition font-bold shadow-sm ${
             quantity >= product.estoque 
               ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
               : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -146,6 +146,7 @@ const QuantityControl = ({
         onClick={handleAddToCart}
         disabled={product.estoque <= 0}
         className={`
+          botaoColor
           w-full py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition shadow-sm
           ${product.estoque <= 0 
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
