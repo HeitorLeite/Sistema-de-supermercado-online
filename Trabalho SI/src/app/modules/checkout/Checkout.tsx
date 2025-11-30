@@ -1,284 +1,258 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../../services/api';
+import { Package, Truck, Check, Clock } from 'lucide-react';
 
 interface StatusInfo {
     index: number;
     label: string;
     color: string;
+    icon: any;
 }
 
-interface Order {
-    id: string;
-    customerName: string;
-    items: string[];
-    status: keyof typeof STATUS_MAP;
-    deliveryAddress: string;
-}
-
+// Mapa de Status
 const STATUS_MAP: { [key: string]: StatusInfo } = {
-    'PENDENTE': { index: 0, label: 'Pedido Confirmado', color: '!bg-slate-500' },
-    'EM_PREPARACAO': { index: 1, label: 'Separação de Itens', color: '!bg-indigo-400' },
-    'A_CAMINHO': { index: 2, label: 'Em Rota de Entrega', color: '!bg-indigo-600' },
-    'ENTREGUE': { index: 3, label: 'Entregue', color: '!bg-blue-800' }
+    'PENDENTE': { index: 0, label: 'Confirmado', color: '!bg-slate-500', icon: Clock },
+    'EM_PREPARACAO': { index: 1, label: 'Em Preparação', color: '!bg-indigo-400', icon: Package },
+    'A_CAMINHO': { index: 2, label: 'A Caminho', color: '!bg-indigo-600', icon: Truck },
+    'ENTREGUE': { index: 3, label: 'Entregue', color: '!bg-green-600', icon: Check }
 };
 
-const CUSTOMER_ORDER_ID = 'PED-001';
-
-const mockCustomerOrder: Order = {
-    id: CUSTOMER_ORDER_ID,
-    customerName: 'Cliente VIP Teste',
-    items: [
-        'Pão de forma integral (1x)',
-        'Leite desnatado (2L)',
-        'Ovos grandes (1 dúzia)',
-        'Maçãs Gala (5 unidades)'
-    ],
-    status: 'A_CAMINHO',
-    deliveryAddress: 'Rua das Flores, 123 - Centro',
-};
-
-const mockAdminOrders: Order[] = [
-    { ...mockCustomerOrder, id: 'PED-001', status: 'A_CAMINHO' },
-    { ...mockCustomerOrder, id: 'PED-002', customerName: 'João Silva', status: 'PENDENTE' },
-    { ...mockCustomerOrder, id: 'PED-003', customerName: 'Maria Antunes', status: 'EM_PREPARACAO' },
-    { ...mockCustomerOrder, id: 'PED-004', customerName: 'Roberto Paz', status: 'ENTREGUE' },
-];
-
-interface ModalProps {
-    title: string;
-    message: string;
-    onClose: () => void;
+type ItemVenda = {
+    id_produto: number;
+    quantidade: number;
+    produtos: {
+        nome: string;
+    }
 }
 
-const MessageModal: React.FC<ModalProps> = ({ title, message, onClose }) => {
-    return (
-        <div className="fixed inset-0 !bg-gray-900 !bg-opacity-50 flex items-center justify-center z-50">
-            <div className="!bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full text-center">
-                <h3 className="text-xl font-bold mb-3 text-gray-800">{title}</h3>
-                <p className="text-gray-600 mb-5">{message}</p>
-                <button
-                    onClick={onClose}
-                    className="!bg-blue-600 hover:!bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
-                >
-                    Entendi
-                </button>
-            </div>
-        </div>
-    );
-};
+type Order = {
+    id_venda: number;
+    data_venda: string;
+    total_venda: string;
+    status: string;
+    metodo_pagamento: string;
+    clientes: {
+        nome: string;
+        endereco: string;
+    };
+    itens_venda: ItemVenda[];
+}
 
-const StatusBar: React.FC<{ status: keyof typeof STATUS_MAP }> = ({ status }) => {
-    const statusData = STATUS_MAP[status];
-    const currentIndex = statusData ? statusData.index : -1;
+const StatusBar: React.FC<{ status: string }> = ({ status }) => {
+    // Normaliza status para garantir compatibilidade
+    const currentKey = Object.keys(STATUS_MAP).includes(status) ? status : 'PENDENTE';
+    const statusData = STATUS_MAP[currentKey];
+    const currentIndex = statusData.index;
     const totalSteps = Object.keys(STATUS_MAP).length;
-    const widthPercent = currentIndex >= 0 ? (currentIndex / (totalSteps - 1)) * 100 : 0;
+    const widthPercent = (currentIndex / (totalSteps - 1)) * 100;
     
-    const dotStyle = "status-dot flex-col w-10 h-10 text-white rounded-full flex items-center justify-center transition duration-300";
-
     return (
-        <div className="relative mb-12 pt-4">
-            <div className="status-bar h-1.5 !bg-gray-200 rounded-full">
-                <div className="status-line h-full rounded-full !bg-indigo-500 transition-all duration-500 ease-in-out" style={{ width: `${widthPercent}%` }}></div>
-            </div>
+        <div className="relative mb-12 pt-6 px-4">
+            <div className="h-1.5 bg-gray-200 rounded-full w-full absolute top-1/2 -translate-y-1/2 left-0 z-0"></div>
+            <div 
+                className="h-1.5 bg-indigo-500 rounded-full absolute top-1/2 -translate-y-1/2 left-0 z-0 transition-all duration-500" 
+                style={{ width: `${widthPercent}%` }}
+            ></div>
             
-            <div className="absolute w-full flex justify-between top-0">
-                {Object.values(STATUS_MAP).map((data, index) => (
-                    <div key={data.index} className="flex flex-col items-center relative -mt-4">
-                        <div className={`${dotStyle} ${index <= currentIndex ? '!bg-indigo-600 shadow-xl scale-110' : '!bg-gray-300'}`}>
+            <div className="relative w-full flex justify-between z-10">
+                {Object.entries(STATUS_MAP).map(([key, data], index) => {
+                    const isActive = index <= currentIndex;
+                    const Icon = data.icon;
+                    return (
+                        <div key={key} className="flex flex-col items-center">
+                            <div 
+                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border-4 border-white shadow-sm
+                                ${isActive ? 'bg-indigo-600 text-white scale-110' : 'bg-gray-300 text-gray-500'}`}
+                            >
+                                <Icon size={18} />
+                            </div>
+                            <span className={`text-xs mt-2 font-bold ${isActive ? 'text-indigo-700' : 'text-gray-400'}`}>
+                                {data.label}
+                            </span>
                         </div>
-                        <span className={`text-xs mt-3 w-32 text-center font-semibold transition duration-300 ${index <= currentIndex ? 'text-indigo-700' : 'text-gray-500'}`}>
-                            {data.label}
-                        </span>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+const OrderCard: React.FC<{ order: Order, isAdmin: boolean, onStatusChange?: (id: number, status: string) => void }> = ({ order, isAdmin, onStatusChange }) => {
+    const statusInfo = STATUS_MAP[order.status] || STATUS_MAP['PENDENTE'];
+    const date = new Date(order.data_venda).toLocaleDateString('pt-BR');
+
+    return (
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            {/* Header do Card */}
+            <div className="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
+                <div>
+                    <h3 className="font-bold text-gray-800 text-lg">Pedido #{order.id_venda}</h3>
+                    <p className="text-xs text-gray-500">{date} • {order.metodo_pagamento === 'credit' ? 'Cartão de Crédito' : order.metodo_pagamento}</p>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm ${statusInfo.color.replace('!', '')}`}>
+                    {statusInfo.label}
+                </div>
+            </div>
+
+            {/* Corpo do Card */}
+            <div className="p-5">
+                {/* Se for Cliente, mostra barra de progresso detalhada */}
+                {!isAdmin && <StatusBar status={order.status} />}
+
+                <div className="flex flex-col md:flex-row gap-6 mt-4">
+                    {/* Informações de Entrega */}
+                    <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Entrega</h4>
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                            <p className="font-bold text-gray-800">{order.clientes?.nome || 'Cliente Removido'}</p>
+                            <p className="text-sm text-gray-600 mt-1">{order.clientes?.endereco || 'Endereço não disponível'}</p>
+                        </div>
                     </div>
-                ))}
+
+                    {/* Lista de Itens */}
+                    <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Itens</h4>
+                        <ul className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-2 max-h-40 overflow-y-auto">
+                            {order.itens_venda.map((item, idx) => (
+                                <li key={idx} className="text-sm text-gray-700 flex justify-between border-b border-gray-200 pb-1 last:border-0 last:pb-0">
+                                    <span>{item.produtos?.nome || 'Produto Indisponível'}</span>
+                                    <span className="font-bold text-gray-900">x{item.quantidade}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+
+                {/* Área de Ação do Admin */}
+                {isAdmin && onStatusChange && (
+                    <div className="mt-6 pt-4 border-t border-gray-100">
+                        <p className="text-xs font-bold text-gray-500 mb-2 uppercase">Atualizar Status</p>
+                        <div className="flex flex-wrap gap-2">
+                            {Object.keys(STATUS_MAP).map((statusKey) => (
+                                <button
+                                    key={statusKey}
+                                    onClick={() => onStatusChange(order.id_venda, statusKey)}
+                                    disabled={order.status === statusKey}
+                                    className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors
+                                        ${order.status === statusKey 
+                                            ? 'bg-gray-800 text-white cursor-default' 
+                                            : 'bg-gray-100 text-gray-600 hover:bg-indigo-100 hover:text-indigo-700 border border-gray-200'
+                                        }
+                                    `}
+                                >
+                                    {STATUS_MAP[statusKey].label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+            
+            {/* Footer com Total */}
+            <div className="bg-gray-50 p-4 border-t border-gray-100 flex justify-between items-center">
+                <span className="text-sm text-gray-500 font-medium">Total do Pedido</span>
+                <span className="text-xl font-extrabold text-indigo-700">R$ {Number(order.total_venda).toFixed(2)}</span>
             </div>
         </div>
     );
 };
 
-const AdminOrderCard: React.FC<{ order: Order, onStatusChange: (status: keyof typeof STATUS_MAP) => void }> = ({ order, onStatusChange }) => {
-    const statusInfo = STATUS_MAP[order.status] || { label: 'Desconhecido', color: '!bg-gray-400' };
+const Checkout = () => {
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [userRole, setUserRole] = useState<'admin' | 'cliente' | null>(null);
 
-    const borderColor = statusInfo.color.replace('!bg-', 'border-');
+    useEffect(() => {
+        loadOrders();
+    }, []);
+
+    const loadOrders = async () => {
+        setLoading(true);
+        try {
+            const storedUser = localStorage.getItem("usuario");
+            if (!storedUser) return; // Redirecionar se não logado seria ideal
+
+            const userObj = JSON.parse(storedUser);
+            const isAdmin = !!userObj.id_adm;
+            const id = isAdmin ? userObj.id_adm : userObj.id_cliente;
+
+            setUserRole(isAdmin ? 'admin' : 'cliente');
+
+            const endpoint = isAdmin 
+                ? "/vendas" 
+                : `/vendas/cliente/${id}`;
+
+            const response = await api.get(endpoint);
+            setOrders(response.data);
+        } catch (error) {
+            console.error("Erro ao carregar pedidos:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleStatusChange = async (orderId: number, newStatus: string) => {
+        try {
+            await api.put(`/vendas/${orderId}/status`, { status: newStatus });
+            // Atualiza a lista localmente para refletir a mudança instantaneamente
+            setOrders(orders.map(order => 
+                order.id_venda === orderId ? { ...order, status: newStatus } : order
+            ));
+        } catch (error) {
+            alert("Erro ao atualizar status do pedido.");
+            console.error(error);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            </div>
+        );
+    }
 
     return (
-        <div className={`p-5 border-l-4 rounded-xl shadow-lg transition duration-200 !bg-white hover:shadow-xl ${borderColor}`}>
-            <div className="flex justify-between items-start mb-2">
-                <h4 className="text-xl font-bold text-gray-800">Pedido #{order.id}</h4>
-                <span className={`font-semibold text-xs p-1.5 rounded-full text-white shadow-md ${statusInfo.color}`}>{statusInfo.label}</span>
-            </div>
-            <p className="text-sm text-gray-600 mb-2">Cliente: {order.customerName}</p>
-            <p className="text-sm text-gray-600 mb-3 truncate">Endereço: {order.deliveryAddress}</p>
-            
-            <div className="flex flex-wrap gap-1.5 mb-4 border-b pb-3">
-                {order.items.map((item, index) => (
-                    <span key={index} className="inline-block !bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded-full">
-                        {item.split('(')[0].trim()}
-                    </span>
-                ))}
-            </div>
-            
-            <div className="flex flex-wrap gap-2 pt-2">
-                {Object.entries(STATUS_MAP).map(([statusKey, data]) => (
-                    <button 
-                        key={statusKey}
-                        onClick={() => onStatusChange(statusKey as keyof typeof STATUS_MAP)}
-                        className={`text-xs font-semibold py-1 px-3 rounded-full transition duration-150 whitespace-nowrap shadow-sm
-                        ${order.status === statusKey ? '!bg-gray-200 text-gray-500 cursor-not-allowed shadow-inner' : '!bg-blue-100 text-blue-700 hover:!bg-blue-600 hover:text-white'}`}
-                        disabled={order.status === statusKey}
-                    >
-                        Marcar como {data.label}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-// Adicionando a prop onStatusChange para permitir a atualização do status pelo cliente
-const CustomerView: React.FC<{ order: Order, onStatusChange: (status: keyof typeof STATUS_MAP) => void }> = ({ order, onStatusChange }) => {
-    const statusInfo = STATUS_MAP[order.status];
-    const canConfirmDelivery = order.status === 'A_CAMINHO';
-
-    return (
-        <div className="p-6 sm:p-8 rounded-xl shadow-2xl !bg-white">
-            <h2 className="text-3xl font-bold mb-8 text-indigo-700 text-center">Acompanhe Sua Entrega</h2>
-
-            <div className="p-6 !bg-blue-50 rounded-xl border border-blue-200 shadow-inner">
-                <h3 className="text-xl font-bold text-indigo-800 mb-6">Pedido #{order.id} - {order.customerName}</h3>
-                
-                <StatusBar status={order.status} />
-
-                <p className="text-sm text-gray-700 mt-10 p-4 !bg-white rounded-lg shadow-md border-l-4 border-indigo-400">
-                    <span className="font-semibold">Status Atual:</span> 
-                    <span className={`font-bold ml-2 p-1 rounded-md text-white shadow-sm ${statusInfo.color}`}>{statusInfo.label}</span>
-                </p>
-                
-                {/* Botão para o cliente confirmar a entrega */}
-                {canConfirmDelivery && (
-                    <div className="mt-6 pt-4 border-t border-gray-200">
-                        <button
-                            onClick={() => onStatusChange('ENTREGUE')}
-                            className="w-full !bg-green-500 hover:!bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-200 disabled:!bg-gray-400"
-                        >
-                            Confirmar Entrega Recebida
-                        </button>
-                        <p className="text-xs text-gray-500 mt-2 text-center">
-                            Apenas clique quando tiver recebido o seu pedido.
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-8 pt-24">
+            <div className="max-w-5xl mx-auto">
+                <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-gray-900">
+                            {userRole === 'admin' ? 'Painel de Pedidos' : 'Meus Pedidos'}
+                        </h1>
+                        <p className="text-gray-500 mt-1">
+                            {userRole === 'admin' 
+                                ? 'Gerencie o status e visualize todos os pedidos da loja.' 
+                                : 'Acompanhe o status e histórico das suas compras.'}
                         </p>
                     </div>
-                )}
-
-                <div className="mt-8 border-t pt-6">
-                    <p className="font-semibold text-gray-800 mb-2">Endereço de Entrega:</p>
-                    <p className="text-gray-600 mb-4 !bg-gray-50 p-2 rounded-lg">{order.deliveryAddress}</p>
-
-                    <p className="font-semibold text-gray-800 mb-2">Itens do Pedido:</p>
-                    <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4 p-2 !bg-gray-50 rounded-lg">
-                        {order.items.map((item, index) => (
-                            <li key={index}>{item}</li>
-                        ))}
-                    </ul>
+                    <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 mt-4 md:mt-0">
+                        <span className="text-sm text-gray-500 font-medium">Total de Pedidos: </span>
+                        <span className="text-lg font-bold text-indigo-600">{orders.length}</span>
+                    </div>
                 </div>
-            </div>
-        </div>
-    );
-};
 
-const AdminView: React.FC<{ orders: Order[], onStatusChange: (orderId: string, status: keyof typeof STATUS_MAP) => void }> = ({ orders, onStatusChange }) => {
-    return (
-        <div className="p-6 sm:p-8 rounded-xl shadow-2xl !bg-white">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Painel de Administração de Pedidos (Layout)</h2>
-            
-            <div className="!bg-red-50 p-4 rounded-lg mb-6 border border-red-200">
-                <p className="text-sm text-red-700 font-medium">⚠️ Este é apenas o layout. A funcionalidade de alteração de status é simulada.</p>
-            </div>
-
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-700">Pedidos Recebidos ({orders.length})</h3>
-                <button
-                    onClick={() => onStatusChange('LAYOUT_ONLY', 'PENDENTE')}
-                    className="!bg-indigo-500 hover:!bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 text-sm"
-                >
-                    Adicionar Pedido de Exemplo (Simulado)
-                </button>
-            </div>
-
-            <div className="space-y-4">
                 {orders.length === 0 ? (
-                    <p className="text-gray-500 italic">Nenhum pedido mockado.</p>
+                    <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+                        <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-xl font-bold text-gray-700">Nenhum pedido encontrado</h3>
+                        <p className="text-gray-500">Parece que ainda não há histórico de compras.</p>
+                    </div>
                 ) : (
-                    orders.map(order => (
-                        <AdminOrderCard 
-                            key={order.id} 
-                            order={order} 
-                            onStatusChange={(status) => onStatusChange(order.id, status)} 
-                        />
-                    ))
+                    <div className="space-y-6">
+                        {orders.map(order => (
+                            <OrderCard 
+                                key={order.id_venda} 
+                                order={order} 
+                                isAdmin={userRole === 'admin'}
+                                onStatusChange={userRole === 'admin' ? handleStatusChange : undefined}
+                            />
+                        ))}
+                    </div>
                 )}
             </div>
         </div>
     );
 };
 
-const App: React.FC = () => {
-    const [mode, setMode] = useState<'customer' | 'admin'>('customer');
-    const [modal, setModal] = useState<{ title: string; message: string; visible: boolean }>({ title: '', message: '', visible: false });
-    const [customerStatus, setCustomerStatus] = useState<keyof typeof STATUS_MAP>(mockCustomerOrder.status);
-
-    const showModal = (title: string, message: string) => {
-        setModal({ title, message, visible: true });
-    };
-
-    const closeModal = () => {
-        setModal({ ...modal, visible: false });
-    };
-    
-    // Função unificada de atualização de status para simular
-    const simulateStatusUpdate = (orderId: string, newStatus: keyof typeof STATUS_MAP) => {
-        if (orderId === CUSTOMER_ORDER_ID) {
-            setCustomerStatus(newStatus);
-            showModal('Status Alterado (Simulação)', `O status do pedido ${orderId} foi simuladamente alterado para: ${STATUS_MAP[newStatus].label}`);
-        } else if (orderId === 'LAYOUT_ONLY') {
-            showModal('Adicionar Pedido (Simulação)', 'Esta é a área para o botão "Adicionar". O layout está correto.');
-        } else {
-            showModal('Ação Simulada', `Ação de status para ${orderId} simulada: ${STATUS_MAP[newStatus].label}.`);
-        }
-    }
-
-    // Função específica para o CustomerView usar (passa apenas o novo status)
-    const handleCustomerStatusChange = (newStatus: keyof typeof STATUS_MAP) => {
-        simulateStatusUpdate(CUSTOMER_ORDER_ID, newStatus);
-    }
-
-    const currentCustomerOrder: Order = { ...mockCustomerOrder, status: customerStatus };
-
-    return (
-        <div className="!bg-gray-100 min-h-screen p-4 sm:p-8">
-            <div className="max-w-4xl mx-auto pt-4">
-
-                <div className="mt-30 flex justify-center mb-10 !bg-white p-2 rounded-xl shadow-2xl">
-                    <button
-                        onClick={() => setMode('customer')}
-                        className={`p-3 w-1/2 text-center text-base font-bold rounded-lg transition duration-200 ${mode === 'customer' ? '!bg-indigo-600 text-white shadow-xl' : 'text-gray-700 hover:!bg-gray-100'}`}
-                    >
-                        Visão do Cliente
-                    </button>
-                    <button
-                        onClick={() => setMode('admin')}
-                        className={`p-3 w-1/2 text-center text-base font-bold rounded-lg transition duration-200 ${mode === 'admin' ? '!bg-indigo-600 text-white shadow-xl' : 'text-gray-700 hover:bg-gray-100'}`}
-                    >
-                        Painel Admin
-                    </button>
-                </div>
-
-                {mode === 'customer' 
-                    ? <CustomerView order={currentCustomerOrder} onStatusChange={handleCustomerStatusChange} /> 
-                    : <AdminView orders={mockAdminOrders} onStatusChange={simulateStatusUpdate} />}
-
-                {modal.visible && <MessageModal title={modal.title} message={modal.message} onClose={closeModal} />}
-            </div>
-        </div>
-    );
-};
-
-export default App;
+export default Checkout;

@@ -96,6 +96,7 @@ model vendas {
   data_venda       DateTime      @default(now()) @db.DateTime(0)
   total_venda      Decimal       @db.Decimal(10, 2)
   metodo_pagamento String?       @db.VarChar(30)
+  status           String        @default("PENDENTE") @db.VarChar(30)
   itens_venda      itens_venda[]
   clientes         clientes?     @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "vendas_ibfk_1")
 
@@ -114,7 +115,6 @@ model administradores {
   data_cadastro   DateTime? @default(now()) @db.DateTime(0)
 }
 
-// NOVA TABELA DE TAREFAS
 model tarefas {
   id_tarefa    Int      @id @default(autoincrement())
   descricao    String   @db.VarChar(255)

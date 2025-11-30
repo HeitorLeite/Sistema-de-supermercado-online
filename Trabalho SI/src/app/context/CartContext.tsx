@@ -163,7 +163,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const checkout = async (paymentMethod: string) => {
-    // Validate stock before proceeding
+    // 1. Validar Estoque
     for (const item of items) {
       const product = await fetchProduct(item.id_produto);
       const estoque = Number(product?.estoque ?? 0);
@@ -172,29 +172,53 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
+    // 2. Recuperar ID do Cliente do LocalStorage
+    let idCliente = null;
+    try {
+        const storedUser = localStorage.getItem('usuario');
+        if (storedUser) {
+            const userObj = JSON.parse(storedUser);
+            // Verifica se é cliente (id_cliente) ou admin (id_adm) tentando comprar
+            idCliente = userObj.id_cliente ? Number(userObj.id_cliente) : null;
+        }
+    } catch (e) {
+        console.error("Erro ao recuperar usuário para checkout", e);
+    }
+
+    if (!idCliente) {
+        return { success: false, message: "Erro: Usuário não identificado. Faça login novamente." };
+    }
+
     const desconto = couponCode ? (PRESET_COUPONS[couponCode]?.type === 'fixed' ? PRESET_COUPONS[couponCode].value : (subtotal * PRESET_COUPONS[couponCode].value) / 100) : 0;
     const total_venda = subtotal - desconto;
 
     try {
-      // Create venda
-      const vendaRes = await api.post('/venda', { id_cliente: null, total_venda, metodo_pagamento: paymentMethod });
+      // 3. Criar Venda com o ID do Cliente
+      const vendaRes = await api.post('/venda', { 
+          id_cliente: idCliente, // Envia o ID recuperado
+          total_venda, 
+          metodo_pagamento: paymentMethod 
+      });
+      
       const venda = vendaRes.data;
       const id_venda = venda.id_venda || vendaRes.data.id_venda || vendaRes.data.id || undefined;
-      if (!id_venda) {
-        // It may return created object directly
-        // Try to use id_venda field
-      }
-      // Create items
+      
+      // 4. Registrar Itens da Venda
       for (const item of items) {
-        await api.post('/venda/itens', { id_venda: id_venda ?? 0, id_produto: item.id_produto, quantidade: item.quantity, preco_unitario_venda: Number(item.preco_venda) });
+        await api.post('/venda/itens', { 
+            id_venda: id_venda ?? 0, 
+            id_produto: item.id_produto, 
+            quantidade: item.quantity, 
+            preco_unitario_venda: Number(item.preco_venda) 
+        });
       }
 
-      // Clear cart after checkout success
+      // Limpar carrinho
       clearCart();
       return { success: true, vendaId: id_venda };
     } catch (error) {
       console.error('Erro ao finalizar venda', error);
-      return { success: false, message: 'Erro ao finalizar pedido' };
+      return { success: false, message: 'Erro ao processar o pedido no servidor.' };
     }
   };
 

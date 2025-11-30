@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { 
   User, 
-  Settings, 
   MapPin, 
   Phone, 
   Mail, 
@@ -34,10 +33,18 @@ type UserData = {
   senha?: string;
 };
 
+// Tipo atualizado conforme o banco de dados (tabela 'tarefas')
 type Task = {
-  id: number;
-  text: string;
-  completed: boolean;
+  id_tarefa: number;
+  descricao: string;
+  concluida: boolean;
+};
+
+type DashboardStats = {
+  vendas: number;
+  clientes: number;
+  produtos: number;
+  pedidos: number;
 };
 
 // --- COMPONENTES AUXILIARES ---
@@ -173,22 +180,13 @@ const ClientProfile = ({ user }: { user: UserData }) => {
 // --- SUB-COMPONENTES ADMIN ---
 
 const AdminStats = () => {
-  // Simulação de dados reais (em um cenário real, viriam de um endpoint /dashboard)
-  const [stats, setStats] = useState({ vendas: 0, clientes: 0, pedidos: 0 });
+  const [stats, setStats] = useState<DashboardStats>({ vendas: 0, clientes: 0, produtos: 0, pedidos: 0 });
 
   useEffect(() => {
-    // Aqui você faria a chamada para a API de estatísticas
-    // Como não temos esse endpoint, vamos simular ou pegar alguns dados disponíveis
     const fetchStats = async () => {
       try {
-        // Exemplo: Pegar o total de produtos como um número interessante
-        const resProd = await api.get("/produtos");
-        // E simular outros números para a demo
-        setStats({
-          vendas: 12500.50, // Simulado
-          clientes: 48,     // Simulado
-          pedidos: resProd.data.length // Usando qtd de produtos como placeholder
-        });
+        const res = await api.get("/dashboard/stats");
+        setStats(res.data);
       } catch (error) {
         console.error("Erro ao carregar stats", error);
       }
@@ -201,10 +199,12 @@ const AdminStats = () => {
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
         <div className="flex justify-between items-start">
           <div>
-            <p className="text-sm text-gray-500 font-medium">Faturamento Mensal</p>
-            <h3 className="text-3xl font-bold text-gray-800 mt-2">R$ {stats.vendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
+            <p className="text-sm text-gray-500 font-medium">Faturamento Total</p>
+            <h3 className="text-3xl font-bold text-gray-800 mt-2">
+              R$ {Number(stats.vendas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </h3>
             <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
-              <span className="bg-green-100 px-1 rounded">▲ 12%</span> vs mês anterior
+              Vendas realizadas
             </p>
           </div>
           <div className="p-3 bg-green-50 text-green-600 rounded-xl"><LayoutDashboard size={28}/></div>
@@ -215,7 +215,7 @@ const AdminStats = () => {
           <div>
             <p className="text-sm text-gray-500 font-medium">Total de Clientes</p>
             <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.clientes}</h3>
-            <p className="text-xs text-blue-500 mt-1">Novos cadastros esta semana</p>
+            <p className="text-xs text-blue-500 mt-1">Usuários cadastrados</p>
           </div>
           <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><Users size={28}/></div>
         </div>
@@ -224,8 +224,8 @@ const AdminStats = () => {
         <div className="flex justify-between items-start">
           <div>
             <p className="text-sm text-gray-500 font-medium">Produtos em Estoque</p>
-            <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.pedidos}</h3>
-            <p className="text-xs text-orange-500 mt-1">Itens cadastrados no sistema</p>
+            <h3 className="text-3xl font-bold text-gray-800 mt-2">{stats.produtos}</h3>
+            <p className="text-xs text-orange-500 mt-1">Total de SKUs</p>
           </div>
           <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><ClipboardList size={28}/></div>
         </div>
@@ -265,7 +265,7 @@ const EditUserModal = ({ user, onClose, onSave }: { user: UserData, onClose: () 
 
 const UserManagement = () => {
   const [view, setView] = useState<'clientes' | 'admins'>('clientes');
-  const [users, setUsers] = useState<UserData[]>([]); // Clientes ou Admins
+  const [users, setUsers] = useState<UserData[]>([]); 
   const [searchTerm, setSearchTerm] = useState("");
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -277,23 +277,9 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // NOTE: Aqui estamos simulando endpoints separados.
-      // O seu backend tem um endpoint /cliente/:id, mas não um "listar todos".
-      // Em uma aplicação real, você precisaria de `api.get("/clientes")` e `api.get("/administradores")`.
-      // Como estamos sem esses endpoints específicos no server.js fornecido (apenas get by id), 
-      // vou simular uma lista vazia ou mockada para demonstrar a interface.
-      
-      // MOCK DE DADOS PARA VISUALIZAÇÃO
-      if (view === 'clientes') {
-        setUsers([
-          { id_cliente: 1, nome: "João Silva", email: "joao@email.com", cpf: "123.456.789-00", telefone: "1199999999", endereco: "Rua A, 123" },
-          { id_cliente: 2, nome: "Maria Souza", email: "maria@email.com", cpf: "321.654.987-00", telefone: "2198888888", endereco: "Av B, 456" },
-        ]);
-      } else {
-        setUsers([
-          { id_adm: 1, nome: "Admin Principal", email: "admin@freshness.com", cpf: "000.000.000-00", telefone: "00000000", endereco: "Sede" },
-        ]);
-      }
+      const endpoint = view === 'clientes' ? "/clientes" : "/administradores";
+      const res = await api.get(endpoint);
+      setUsers(res.data);
     } catch (error) {
       console.error("Erro ao buscar usuários", error);
     } finally {
@@ -303,13 +289,25 @@ const UserManagement = () => {
 
   const handleUpdateUser = async (updatedUser: UserData) => {
     try {
-      // Aqui chamaria a API real: await api.put(`/cliente/${updatedUser.id_cliente}`, updatedUser);
+      const id = updatedUser.id_cliente || updatedUser.id_adm;
+      // Define a rota correta baseada no tipo de usuário
+      const endpoint = view === 'clientes' 
+        ? `/cliente/${id}` 
+        : `/administrador/cadastro/${id}`;
+
+      await api.put(endpoint, updatedUser);
+      
       // Atualiza estado local
-      setUsers(users.map(u => (u.id_cliente === updatedUser.id_cliente ? updatedUser : u)));
+      setUsers(users.map(u => {
+        const uId = u.id_cliente || u.id_adm;
+        return uId === id ? { ...u, ...updatedUser } : u;
+      }));
+      
       setEditingUser(null);
-      alert("Usuário atualizado (Simulação)");
+      alert("Usuário atualizado com sucesso!");
     } catch (error) {
-      alert("Erro ao atualizar");
+      console.error(error);
+      alert("Erro ao atualizar usuário.");
     }
   };
 
@@ -353,9 +351,9 @@ const UserManagement = () => {
         />
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
         <table className="w-full text-left border-collapse">
-          <thead>
+          <thead className="sticky top-0 bg-white shadow-sm z-10">
             <tr className="border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               <th className="py-3 px-2">Nome</th>
               <th className="py-3 px-2">Email</th>
@@ -375,15 +373,14 @@ const UserManagement = () => {
                   <td className="py-3 px-2">{user.email}</td>
                   <td className="py-3 px-2">{user.telefone || '-'}</td>
                   <td className="py-3 px-2 text-right">
-                    {view === 'clientes' && (
-                      <button 
-                        onClick={() => setEditingUser(user)}
-                        className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition"
-                        title="Editar"
-                      >
-                        <Edit size={18} />
-                      </button>
-                    )}
+                    {/* Botão de edição disponível para clientes. Se quiser para admins, remova a condição */}
+                    <button 
+                      onClick={() => setEditingUser(user)}
+                      className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition"
+                      title="Editar"
+                    >
+                      <Edit size={18} />
+                    </button>
                   </td>
                 </tr>
               ))
@@ -404,30 +401,53 @@ const UserManagement = () => {
 };
 
 const TaskManager = () => {
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: 1, text: "Verificar estoque de laticínios", completed: false },
-    { id: 2, text: "Aprovar cadastro de fornecedor XPTO", completed: true },
-    { id: 3, text: "Responder dúvidas no chat", completed: false },
-  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskText, setNewTaskText] = useState("");
 
-  const addTask = () => {
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const fetchTasks = async () => {
+    try {
+      const res = await api.get("/tarefas");
+      setTasks(res.data);
+    } catch (error) {
+      console.error("Erro ao buscar tarefas", error);
+    }
+  };
+
+  const addTask = async () => {
     if (!newTaskText.trim()) return;
-    const newTask = {
-      id: Date.now(),
-      text: newTaskText,
-      completed: false
-    };
-    setTasks([...tasks, newTask]);
-    setNewTaskText("");
+    try {
+      const res = await api.post("/tarefas", { descricao: newTaskText });
+      setTasks([res.data, ...tasks]); // Adiciona a nova tarefa no topo
+      setNewTaskText("");
+    } catch (error) {
+      console.error("Erro ao adicionar tarefa", error);
+    }
   };
 
-  const toggleTask = (id: number) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  const toggleTask = async (task: Task) => {
+    try {
+      // Atualização otimista
+      const newStatus = !task.concluida;
+      setTasks(tasks.map(t => t.id_tarefa === task.id_tarefa ? { ...t, concluida: newStatus } : t));
+      
+      await api.put(`/tarefas/${task.id_tarefa}`, { concluida: newStatus });
+    } catch (error) {
+      console.error("Erro ao atualizar tarefa", error);
+      fetchTasks(); // Reverte em caso de erro
+    }
   };
 
-  const removeTask = (id: number) => {
-    setTasks(tasks.filter(t => t.id !== id));
+  const removeTask = async (id: number) => {
+    try {
+      await api.delete(`/tarefas/${id}`);
+      setTasks(tasks.filter(t => t.id_tarefa !== id));
+    } catch (error) {
+      console.error("Erro ao remover tarefa", error);
+    }
   };
 
   return (
@@ -453,31 +473,31 @@ const TaskManager = () => {
         </button>
       </div>
 
-      <ul className="space-y-3">
+      <ul className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
         {tasks.length === 0 && <p className="text-center text-gray-400 py-4">Nenhuma tarefa pendente.</p>}
         {tasks.map((task) => (
           <li 
-            key={task.id} 
+            key={task.id_tarefa} 
             className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-200
-              ${task.completed ? 'bg-gray-50 border-gray-200 opacity-75' : 'bg-white border-gray-200 hover:shadow-md hover:border-orange-200'}
+              ${task.concluida ? 'bg-gray-50 border-gray-200 opacity-75' : 'bg-white border-gray-200 hover:shadow-md hover:border-orange-200'}
             `}
           >
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => toggleTask(task.id)}
+                onClick={() => toggleTask(task)}
                 className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
-                  ${task.completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-transparent hover:border-orange-500'}
+                  ${task.concluida ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-transparent hover:border-orange-500'}
                 `}
               >
                 <CheckCircle size={14} />
               </button>
-              <span className={`text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-700 font-medium'}`}>
-                {task.text}
+              <span className={`text-sm ${task.concluida ? 'line-through text-gray-400' : 'text-gray-700 font-medium'}`}>
+                {task.descricao}
               </span>
             </div>
             
             <button 
-              onClick={() => removeTask(task.id)}
+              onClick={() => removeTask(task.id_tarefa)}
               className="text-gray-400 hover:text-red-500 transition p-2 rounded-full hover:bg-red-50"
             >
               <Trash2 size={18} />

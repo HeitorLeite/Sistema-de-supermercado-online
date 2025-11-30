@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `vendas` ADD COLUMN `status` VARCHAR(30) NOT NULL DEFAULT 'PENDENTE';
