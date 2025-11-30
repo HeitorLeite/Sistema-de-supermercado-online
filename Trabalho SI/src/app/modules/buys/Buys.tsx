@@ -1,8 +1,8 @@
-import { useMemo, useEffect, useState, useCallback } from "react";
+import { useMemo, useEffect, useState } from "react";
 import api from "../../../services/api";
 import { useSearchParams } from "react-router-dom";
 import { useCart } from "../../context/CartContext";
-import { CheckCircle, AlertCircle, X, Info } from "lucide-react"; // Ícones para notificações
+import { CheckCircle, AlertCircle, X, Info, ShoppingCart } from "lucide-react";
 
 // --- TIPOS ---
 type Categoria = {
@@ -24,7 +24,7 @@ type Product = {
 };
 
 // --- COMPONENTE DE NOTIFICAÇÃO (TOAST) ---
-const Notification = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning', onClose: () => void }) => {
+const Notification = ({ message, type }: { message: string, type: 'success' | 'error' | 'warning' }) => {
   const bgColors = {
     success: 'bg-green-500',
     error: 'bg-red-500',
@@ -48,18 +48,12 @@ const Notification = ({ message, type, onClose }: { message: string, type: 'succ
       <div className="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg bg-white/20">
         {icons[type]}
       </div>
-      <div className="ml-3 text-sm font-semibold pr-4">{message}</div>
-      <button 
-        type="button" 
-        className="ml-auto -mx-1.5 -my-1.5 bg-transparent text-white rounded-lg p-1.5 hover:bg-white/20 inline-flex h-8 w-8" 
-        onClick={onClose}
-      >
-        <X className="w-4 h-4" />
-      </button>
+      <div className="ml-3 text-sm font-semibold pr-2">{message}</div>
     </div>
   );
 };
 
+// --- CONTROLE DE QUANTIDADE (Atualizado) ---
 const QuantityControl = ({ 
   product, 
   addToCart, 
@@ -93,37 +87,47 @@ const QuantityControl = ({
   };
 
   return (
-    <div className="flex items-center space-x-2 p-1 border border-blue-200 rounded-full bg-blue-50 w-full justify-between mt-auto">
-      <button 
-        onClick={handleDecrement}
-        className="botaoColor bg-white border border-blue-500 text-blue-500 rounded-full h-7 w-7 flex items-center justify-center hover:bg-blue-100 transition text-xl font-bold p-0 leading-none shadow-sm"
-        aria-label="Diminuir quantidade"
-      >
-        −
-      </button>
-      <span className="text-sm font-bold text-center text-gray-700 mx-1">{quantity}</span>
-      <button 
-        onClick={handleIncrement}
-        className={`botaoColor rounded-full h-7 w-7 flex items-center justify-center transition text-xl font-bold p-0 leading-none shadow-sm ${quantity >= product.estoque ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-        aria-label="Aumentar quantidade"
-      >
-        +
-      </button>
+    <div className="flex flex-col w-full gap-2 mt-auto">
+      {/* Linha de Quantidade */}
+      <div className="flex items-center justify-between p-1.5 border border-gray-200 rounded-lg bg-gray-50">
+        <button 
+          onClick={handleDecrement}
+          className="bg-white border border-gray-300 text-gray-600 rounded-md h-7 w-7 flex items-center justify-center hover:bg-gray-100 transition font-bold shadow-sm"
+        >
+          −
+        </button>
+        <span className="text-sm font-bold text-gray-800">{quantity}</span>
+        <button 
+          onClick={handleIncrement}
+          className={`rounded-md h-7 w-7 flex items-center justify-center transition font-bold shadow-sm ${
+            quantity >= product.estoque 
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          +
+        </button>
+      </div>
+
+      {/* Botão de Adicionar (Embaixo) */}
       <button
         onClick={handleAddToCart}
         disabled={product.estoque <= 0}
-        className={`rounded-full h-8 w-8 flex items-center justify-center transition shadow-md ml-2 flex-shrink-0 ${product.estoque <= 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-        aria-label="Adicionar à Sacola"
-        title="Adicionar à Sacola"
+        className={`
+          w-full py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition shadow-sm
+          ${product.estoque <= 0 
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+            : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-green-200'}
+        `}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
+        <ShoppingCart size={16} />
+        Adicionar
       </button>
     </div>
   );
 };
 
+// --- PÁGINA PRINCIPAL ---
 function ProductCatalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -132,6 +136,7 @@ function ProductCatalog() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchParams] = useSearchParams();
   
+  // Hooks do Carrinho e Notificação
   const { addToCart } = useCart();
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 
@@ -196,7 +201,6 @@ function ProductCatalog() {
         <Notification 
           message={notification.message} 
           type={notification.type} 
-          onClose={() => setNotification(null)} 
         />
       )}
 

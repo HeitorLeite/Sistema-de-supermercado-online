@@ -222,7 +222,7 @@ function ProductManagement() {
               list="categorias-list"
               value={categoryInput}
               onChange={(e) => setCategoryInput(e.target.value)}
-              placeholder="📂 Selecione ou digite uma Nova Categoria"
+              placeholder="Selecione ou digite uma Nova Categoria"
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 bg-white text-gray-700 placeholder-gray-400"
             />
             <datalist id="categorias-list">
@@ -236,13 +236,13 @@ function ProductManagement() {
             type="text" 
             value={title} 
             onChange={(e) => setTitle(e.target.value)} 
-            placeholder="🏷️ Nome do Produto (ex: Maçã Gala)"
+            placeholder="Nome do Produto (ex: Maçã Gala)"
             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
           />
           <textarea
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
-            placeholder="📝 Descrição detalhada do Produto"
+            placeholder="Descrição detalhada do Produto"
             rows={2}
             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 resize-none"
           />
@@ -252,7 +252,7 @@ function ProductManagement() {
               type="number"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder="💰 Preço (ex: 15.99)"
+              placeholder="Preço (ex: 15.99)"
               step="0.01"
               className="w-1/2 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
             />
@@ -260,7 +260,7 @@ function ProductManagement() {
               type="number"
               value={estoque}
               onChange={(e) => setEstoque(e.target.value)}
-              placeholder="📦 Estoque"
+              placeholder="Estoque"
               className="w-1/2 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
             />
           </div>
@@ -269,7 +269,7 @@ function ProductManagement() {
             type="url"
             value={image}
             onChange={(e) => setImage(e.target.value)}
-            placeholder="🖼️ URL da Imagem"
+            placeholder="URL da Imagem"
             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
           />
 

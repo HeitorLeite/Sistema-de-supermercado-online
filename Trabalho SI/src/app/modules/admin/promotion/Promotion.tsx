@@ -210,7 +210,7 @@ function Promotion() {
                     setPrecoPromocao(e.target.value);
                     setErro("");
                 }}
-                placeholder="💰 Novo Preço de Promoção (ex: 12.50)"
+                placeholder="Novo Preço de Promoção (ex: 12.50)"
                 step="0.01"
                 min="0"
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
@@ -224,7 +224,7 @@ function Promotion() {
                     setImagemPromocao(e.target.value);
                     setErro("");
                 }}
-                placeholder="🖼️ URL da Imagem de Destaque da Promoção"
+                placeholder="URL da Imagem de Destaque da Promoção"
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
               />
 
@@ -294,10 +294,10 @@ function Promotion() {
                   </p>
                 </div>
 
-                {/* Botão de Encerrar Promoção em tom de Azul */}
+                {/* Botão de Encerrar Promoção com estilo Vermelho (igual ao Remover Produto) */}
                 <button
                   onClick={() => removerPromo(promo.id_produto)}
-                  className="mt-4 bg-gray-200 text-gray-700 p-3 rounded-xl text-sm font-medium hover:bg-blue-100 hover:text-blue-700 transition duration-200 border-2 border-transparent hover:border-blue-300"
+                  className="mt-4 bg-red-50 text-red-600 border border-red-200 p-3 rounded-xl text-md font-medium hover:bg-red-600 hover:text-white transition shadow-sm"
                 >
                   Encerrar Promoção
                 </button>
