@@ -1,4 +1,4 @@
-import "./Home.scss";
+// Home.scss consolidated into src/index.css
 import banner from "../../../assets/img/banner.png";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
