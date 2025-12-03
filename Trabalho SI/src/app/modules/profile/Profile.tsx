@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import api from "../../../services/api";
 
-// --- TIPOS ---
 type UserData = {
   id_cliente?: number;
   id_adm?: number;
@@ -33,7 +32,6 @@ type UserData = {
   senha?: string;
 };
 
-// Tipo atualizado conforme o banco de dados (tabela 'tarefas')
 type Task = {
   id_tarefa: number;
   descricao: string;
@@ -47,8 +45,6 @@ type DashboardStats = {
   pedidos: number;
 };
 
-// --- COMPONENTES AUXILIARES ---
-
 const Notification = ({ msg, type }: { msg: string, type: 'success' | 'error' }) => {
   if (!msg) return null;
   return (
@@ -59,7 +55,6 @@ const Notification = ({ msg, type }: { msg: string, type: 'success' | 'error' })
   );
 };
 
-// --- VISÃO DO CLIENTE (Edição de Perfil) ---
 const ClientProfile = ({ user }: { user: UserData }) => {
   const [formData, setFormData] = useState<UserData>(user);
   const [loading, setLoading] = useState(false);
@@ -177,7 +172,6 @@ const ClientProfile = ({ user }: { user: UserData }) => {
   );
 };
 
-// --- SUB-COMPONENTES ADMIN ---
 
 const AdminStats = () => {
   const [stats, setStats] = useState<DashboardStats>({ vendas: 0, clientes: 0, produtos: 0, pedidos: 0 });
@@ -234,7 +228,6 @@ const AdminStats = () => {
   );
 };
 
-// Modal de Edição de Usuário
 const EditUserModal = ({ user, onClose, onSave }: { user: UserData, onClose: () => void, onSave: (u: UserData) => void }) => {
   const [form, setForm] = useState(user);
 
@@ -290,14 +283,14 @@ const UserManagement = () => {
   const handleUpdateUser = async (updatedUser: UserData) => {
     try {
       const id = updatedUser.id_cliente || updatedUser.id_adm;
-      // Define a rota correta baseada no tipo de usuário
+
       const endpoint = view === 'clientes' 
         ? `/cliente/${id}` 
         : `/administrador/cadastro/${id}`;
 
       await api.put(endpoint, updatedUser);
       
-      // Atualiza estado local
+
       setUsers(users.map(u => {
         const uId = u.id_cliente || u.id_adm;
         return uId === id ? { ...u, ...updatedUser } : u;
@@ -373,7 +366,7 @@ const UserManagement = () => {
                   <td className="py-3 px-2">{user.email}</td>
                   <td className="py-3 px-2">{user.telefone || '-'}</td>
                   <td className="py-3 px-2 text-right">
-                    {/* Botão de edição disponível para clientes. Se quiser para admins, remova a condição */}
+
                     <button 
                       onClick={() => setEditingUser(user)}
                       className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition"
@@ -421,7 +414,7 @@ const TaskManager = () => {
     if (!newTaskText.trim()) return;
     try {
       const res = await api.post("/tarefas", { descricao: newTaskText });
-      setTasks([res.data, ...tasks]); // Adiciona a nova tarefa no topo
+      setTasks([res.data, ...tasks]);
       setNewTaskText("");
     } catch (error) {
       console.error("Erro ao adicionar tarefa", error);
@@ -430,14 +423,14 @@ const TaskManager = () => {
 
   const toggleTask = async (task: Task) => {
     try {
-      // Atualização otimista
+
       const newStatus = !task.concluida;
       setTasks(tasks.map(t => t.id_tarefa === task.id_tarefa ? { ...t, concluida: newStatus } : t));
       
       await api.put(`/tarefas/${task.id_tarefa}`, { concluida: newStatus });
     } catch (error) {
       console.error("Erro ao atualizar tarefa", error);
-      fetchTasks(); // Reverte em caso de erro
+      fetchTasks();
     }
   };
 
@@ -516,7 +509,7 @@ const NewAdminForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Ajuste de data para ISO
+
       const dataIso = form.data_nascimento ? new Date(form.data_nascimento).toISOString() : null;
       
       await api.post("/administrador/cadastro", { ...form, data_nascimento: dataIso });
@@ -556,7 +549,6 @@ const NewAdminForm = () => {
   );
 };
 
-// --- VISÃO DO ADMINISTRADOR (Layout Principal) ---
 const AdminPanel = ({ user }: { user: UserData }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'tasks' | 'new-admin'>('dashboard');
 
@@ -569,7 +561,7 @@ const AdminPanel = ({ user }: { user: UserData }) => {
 
   return (
     <div className="flex flex-col md:flex-row gap-6 min-h-[600px]">
-      {/* Sidebar */}
+ 
       <aside className="w-full md:w-64 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 h-fit">
         <div className="mb-6 px-2">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Painel Admin</p>
@@ -593,7 +585,6 @@ const AdminPanel = ({ user }: { user: UserData }) => {
         </nav>
       </aside>
 
-      {/* Content Area */}
       <main className="flex-1">
         {activeTab === 'dashboard' && <AdminStats />}
         {activeTab === 'users' && <UserManagement />}
@@ -604,7 +595,6 @@ const AdminPanel = ({ user }: { user: UserData }) => {
   );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 export default function Profile() {
   const [user, setUser] = useState<UserData | null>(null);
 
@@ -627,7 +617,6 @@ export default function Profile() {
     );
   }
 
-  // Verifica se é admin pela presença do ID específico ou flag
   const isAdmin = !!user.id_adm;
 
   return (

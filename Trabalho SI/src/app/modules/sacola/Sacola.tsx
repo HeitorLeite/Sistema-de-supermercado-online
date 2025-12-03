@@ -3,9 +3,6 @@ import { Trash2, ShoppingBag, MapPin, CreditCard, Gift, CheckCircle, AlertCircle
 import { useCart, PRESET_COUPONS } from '../../context/CartContext';
 import type { Address } from '../../context/CartContext';
 
-// --- COMPONENTES AUXILIARES ---
-
-// Componente de Notificação (Toast)
 const Notification = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning', onClose: () => void }) => {
   const bgColors = {
     success: 'bg-green-500',
@@ -38,13 +35,11 @@ const Stepper = ({ currentStep }: { currentStep: number }) => {
     { name: 'Pagamento', icon: CreditCard, index: 3 },
   ];
 
-  // Cálculo da porcentagem da barra de progresso (0%, 50%, 100%)
   const progressWidth = ((currentStep - 1) / (steps.length - 1)) * 100;
 
   return (
     <div className="flex justify-between items-center w-full max-w-2xl mx-auto mb-10 relative px-4">
-      {/* Container da linha de fundo para garantir alinhamento */}
-      <div className="absolute top-6 left-0 w-full px-10"> {/* px-10 compensa a largura dos ícones para a linha começar no centro do primeiro */}
+      <div className="absolute top-6 left-0 w-full px-10">
         <div className="h-1 bg-gray-200 rounded-full w-full">
            <div 
             className="h-1 bg-blue-600 rounded-full transition-all duration-500 ease-in-out" 
@@ -78,7 +73,6 @@ const Stepper = ({ currentStep }: { currentStep: number }) => {
   );
 };
 
-// Componente de Endereço
 const AddressForm = ({ form, setForm }: { form: Address, setForm: React.Dispatch<React.SetStateAction<Address>> }) => {
   return (
     <div className="lg:col-span-2 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -104,7 +98,6 @@ const AddressForm = ({ form, setForm }: { form: Address, setForm: React.Dispatch
   );
 };
 
-// Componente de Pagamento
 const PaymentForm = ({ paymentMethod, setPaymentMethod }: { paymentMethod: string, setPaymentMethod: (m: string) => void }) => {
   const buttonClass = (method: string) =>
     `flex-1 p-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${paymentMethod === method 
@@ -151,19 +144,16 @@ const PaymentForm = ({ paymentMethod, setPaymentMethod }: { paymentMethod: strin
   );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 
 export default function Sacola() {
   const { items, increase, decrease, removeItem, subtotal, totalItems, applyCoupon, couponCode, checkout, setAddress: setContextAddress, clearCart } = useCart();
   
-  // Estados Locais
   const [currentStep, setCurrentStep] = useState(1);
   const [localCoupon, setLocalCoupon] = useState(couponCode || '');
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [addressForm, setAddressForm] = useState<Address>({ cep: '', rua: '', numero: '', bairro: '', complemento: '', cidade: '', uf: '' });
   const [paymentMethod, setPaymentMethod] = useState('credit');
   
-  // Notificações
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'warning') => {
@@ -216,7 +206,6 @@ export default function Sacola() {
         showNotification('Pedido realizado com sucesso! Redirecionando...', 'success');
         clearCart();
         setAddressForm({ cep: '', rua: '', numero: '', bairro: '', complemento: '', cidade: '', uf: '' });
-        // Pequeno delay para o usuário ver a mensagem antes de voltar ao passo 1 ou redirecionar
         setTimeout(() => setCurrentStep(1), 2000);
       } else {
         showNotification(`Erro: ${res.message}`, 'error');

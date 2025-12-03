@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShieldCheck, User } from "lucide-react"; // Ícones para ilustrar a troca
+import { ShieldCheck, User } from "lucide-react";
 import api from "../../../services/api";
 
 function Login() {
@@ -11,7 +11,6 @@ function Login() {
   const [mostrarCadastro, setMostrarCadastro] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // Novo estado para controlar o tipo de login
   const [isAdminLogin, setIsAdminLogin] = useState(false);
 
   const handleLogin = async () => {
@@ -25,7 +24,6 @@ function Login() {
       setLoading(true);
       setErro("");
       
-      // Envia a flag isAdmin junto com as credenciais
       const { data } = await api.post("/login", { 
         email, 
         senha, 
@@ -34,7 +32,6 @@ function Login() {
 
       localStorage.setItem("token", data.token);
       
-      // O backend agora retorna o objeto correto (com id_adm se for admin)
       localStorage.setItem("usuario", JSON.stringify(data.cliente));
 
       api.defaults.headers.Authorization = `Bearer ${data.token}`;
@@ -44,7 +41,7 @@ function Login() {
     } catch (error: any) {
       const msg = error.response?.data?.erro || "Email ou senha incorretos.";
       setErro(msg);
-      // Só sugere cadastro se for login de cliente comum
+
       if (!isAdminLogin) {
         setMostrarCadastro(true);
       }
@@ -98,7 +95,6 @@ function Login() {
           </div>
         )}
 
-        {/* --- TOGGLE DE TIPO DE USUÁRIO --- */}
         <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
           <button
             onClick={() => setIsAdminLogin(false)}

@@ -7,7 +7,7 @@ type CartItem = {
   preco_venda: number;
   imagem?: string;
   quantity: number;
-  estoque?: number; // max quantity
+  estoque?: number;
   descricao?: string;
 };
 
@@ -80,7 +80,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (couponCode) localStorage.setItem('cart_coupon', couponCode);
       else localStorage.removeItem('cart_coupon');
     } catch (e) {
-      // ignore storage errors
+
       console.warn('[CartProvider] could not persist coupon code', e);
     }
   }, [couponCode]);
@@ -124,7 +124,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const increase = async (productId: number) => {
-    // check stock
     const product = await fetchProduct(productId);
     if (!product) return false;
     const estoque = Number(product.estoque ?? 0);
@@ -163,7 +162,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const checkout = async (paymentMethod: string) => {
-    // 1. Validar Estoque
     for (const item of items) {
       const product = await fetchProduct(item.id_produto);
       const estoque = Number(product?.estoque ?? 0);
@@ -172,13 +170,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 2. Recuperar ID do Cliente do LocalStorage
     let idCliente = null;
     try {
         const storedUser = localStorage.getItem('usuario');
         if (storedUser) {
             const userObj = JSON.parse(storedUser);
-            // Verifica se é cliente (id_cliente) ou admin (id_adm) tentando comprar
+
             idCliente = userObj.id_cliente ? Number(userObj.id_cliente) : null;
         }
     } catch (e) {
@@ -193,9 +190,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const total_venda = subtotal - desconto;
 
     try {
-      // 3. Criar Venda com o ID do Cliente
       const vendaRes = await api.post('/venda', { 
-          id_cliente: idCliente, // Envia o ID recuperado
+          id_cliente: idCliente,
           total_venda, 
           metodo_pagamento: paymentMethod 
       });
@@ -203,7 +199,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const venda = vendaRes.data;
       const id_venda = venda.id_venda || vendaRes.data.id_venda || vendaRes.data.id || undefined;
       
-      // 4. Registrar Itens da Venda
       for (const item of items) {
         await api.post('/venda/itens', { 
             id_venda: id_venda ?? 0, 
@@ -213,7 +208,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
 
-      // Limpar carrinho
       clearCart();
       return { success: true, vendaId: id_venda };
     } catch (error) {

@@ -9,7 +9,6 @@ interface StatusInfo {
     icon: any;
 }
 
-// Mapa de Status
 const STATUS_MAP: { [key: string]: StatusInfo } = {
     'PENDENTE': { index: 0, label: 'Confirmado', color: '!bg-slate-500', icon: Clock },
     'EM_PREPARACAO': { index: 1, label: 'Em Preparação', color: '!bg-indigo-400', icon: Package },
@@ -39,7 +38,6 @@ type Order = {
 }
 
 const StatusBar: React.FC<{ status: string }> = ({ status }) => {
-    // Normaliza status para garantir compatibilidade
     const currentKey = Object.keys(STATUS_MAP).includes(status) ? status : 'PENDENTE';
     const statusData = STATUS_MAP[currentKey];
     const currentIndex = statusData.index;
@@ -83,7 +81,7 @@ const OrderCard: React.FC<{ order: Order, isAdmin: boolean, onStatusChange?: (id
 
     return (
         <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow duration-300">
-            {/* Header do Card */}
+
             <div className="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
                 <div>
                     <h3 className="font-bold text-gray-800 text-lg">Pedido #{order.id_venda}</h3>
@@ -94,13 +92,13 @@ const OrderCard: React.FC<{ order: Order, isAdmin: boolean, onStatusChange?: (id
                 </div>
             </div>
 
-            {/* Corpo do Card */}
+
             <div className="p-5">
-                {/* Se for Cliente, mostra barra de progresso detalhada */}
+
                 {!isAdmin && <StatusBar status={order.status} />}
 
                 <div className="flex flex-col md:flex-row gap-6 mt-4">
-                    {/* Informações de Entrega */}
+
                     <div className="flex-1">
                         <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Entrega</h4>
                         <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
@@ -109,7 +107,7 @@ const OrderCard: React.FC<{ order: Order, isAdmin: boolean, onStatusChange?: (id
                         </div>
                     </div>
 
-                    {/* Lista de Itens */}
+
                     <div className="flex-1">
                         <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Itens</h4>
                         <ul className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-2 max-h-40 overflow-y-auto">
@@ -123,7 +121,7 @@ const OrderCard: React.FC<{ order: Order, isAdmin: boolean, onStatusChange?: (id
                     </div>
                 </div>
 
-                {/* Área de Ação do Admin */}
+
                 {isAdmin && onStatusChange && (
                     <div className="mt-6 pt-4 border-t border-gray-100">
                         <p className="text-xs font-bold text-gray-500 mb-2 uppercase">Atualizar Status</p>
@@ -148,7 +146,6 @@ const OrderCard: React.FC<{ order: Order, isAdmin: boolean, onStatusChange?: (id
                 )}
             </div>
             
-            {/* Footer com Total */}
             <div className="bg-gray-50 p-4 border-t border-gray-100 flex justify-between items-center">
                 <span className="text-sm text-gray-500 font-medium">Total do Pedido</span>
                 <span className="text-xl font-extrabold text-indigo-700">R$ {Number(order.total_venda).toFixed(2)}</span>
@@ -170,7 +167,7 @@ const Checkout = () => {
         setLoading(true);
         try {
             const storedUser = localStorage.getItem("usuario");
-            if (!storedUser) return; // Redirecionar se não logado seria ideal
+            if (!storedUser) return;
 
             const userObj = JSON.parse(storedUser);
             const isAdmin = !!userObj.id_adm;
@@ -194,7 +191,6 @@ const Checkout = () => {
     const handleStatusChange = async (orderId: number, newStatus: string) => {
         try {
             await api.put(`/vendas/${orderId}/status`, { status: newStatus });
-            // Atualiza a lista localmente para refletir a mudança instantaneamente
             setOrders(orders.map(order => 
                 order.id_venda === orderId ? { ...order, status: newStatus } : order
             ));

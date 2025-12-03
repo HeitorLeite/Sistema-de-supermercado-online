@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router-dom";
 import { useCart } from "../../context/CartContext";
 import { CheckCircle, AlertCircle, X, Info, ShoppingCart } from "lucide-react";
 
-// --- TIPOS ---
 type Categoria = {
   id_categoria: number;
   nome_categoria: string;
@@ -23,7 +22,6 @@ type Product = {
   };
 };
 
-// --- COMPONENTE DE NOTIFICAÇÃO (TOAST) ---
 const Notification = ({ message, type }: { message: string, type: 'success' | 'error' | 'warning' }) => {
   const bgColors = {
     success: 'bg-green-500',
@@ -53,7 +51,6 @@ const Notification = ({ message, type }: { message: string, type: 'success' | 'e
   );
 };
 
-// --- CONTROLE DE QUANTIDADE (Atualizado) ---
 const QuantityControl = ({ 
   product, 
   addToCart, 
@@ -88,7 +85,6 @@ const QuantityControl = ({
 
   return (
     <div className="flex flex-col w-full gap-2 mt-auto">
-      {/* Linha de Quantidade */}
       <div className="flex items-center justify-between p-1.5 border border-gray-200 rounded-lg bg-gray-50">
         <button 
           onClick={handleDecrement}
@@ -109,7 +105,6 @@ const QuantityControl = ({
         </button>
       </div>
 
-      {/* Botão de Adicionar (Embaixo) */}
       <button
         onClick={handleAddToCart}
         disabled={product.estoque <= 0}
@@ -127,7 +122,6 @@ const QuantityControl = ({
   );
 };
 
-// --- PÁGINA PRINCIPAL ---
 function ProductCatalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -136,7 +130,6 @@ function ProductCatalog() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchParams] = useSearchParams();
   
-  // Hooks do Carrinho e Notificação
   const { addToCart } = useCart();
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 
@@ -196,7 +189,6 @@ function ProductCatalog() {
   return (
     <div className="min-h-screen bg-gray-50 pb-10 relative">
       
-      {/* Toast Notification */}
       {notification && (
         <Notification 
           message={notification.message} 
@@ -209,7 +201,6 @@ function ProductCatalog() {
           Catálogo de Produtos
         </h1>
 
-        {/* Barra de Pesquisa */}
         <div className="mb-6 flex justify-center">
           <input
             type="text"
@@ -220,7 +211,6 @@ function ProductCatalog() {
           />
         </div>
 
-        {/* Filtro de Categorias */}
         <div className="overflow-x-auto whitespace-nowrap py-3 mb-8 border-b border-gray-200 no-scrollbar">
           {allCategories.map((category) => (
             <button
@@ -240,7 +230,6 @@ function ProductCatalog() {
           ))}
         </div>
 
-        {/* Estado de Carregamento */}
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -258,7 +247,6 @@ function ProductCatalog() {
                 key={product.id_produto} 
                 className="bg-white rounded-xl shadow-lg p-4 transition duration-300 transform hover:scale-[1.02] flex flex-col border border-gray-100 hover:border-blue-300 relative group"
               >
-                {/* Overlay de Esgotado */}
                 {product.estoque <= 0 && (
                   <div className="absolute inset-0 bg-white/60 z-20 flex items-center justify-center rounded-xl backdrop-blur-[1px]">
                     <span className="bg-red-500 text-white font-bold px-3 py-1 rounded-full text-sm shadow-md">ESGOTADO</span>

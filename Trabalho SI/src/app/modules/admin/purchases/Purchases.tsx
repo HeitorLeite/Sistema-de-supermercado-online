@@ -11,7 +11,7 @@ import {
   CheckCircle, 
   AlertCircle, 
   X 
-} from "lucide-react"; // Importação dos ícones corrigida
+} from "lucide-react";
 
 // --- TIPOS ---
 type Supplier = {
@@ -77,21 +77,17 @@ const Notification = ({ message, type, onClose }: { message: string, type: 'succ
 export default function Purchases() {
   const [activeTab, setActiveTab] = useState<'suppliers' | 'order'>('order');
   
-  // --- Estados de Dados ---
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   
-  // --- Estados de Formulário (Novo Fornecedor) ---
   const [newSupplier, setNewSupplier] = useState({ nome: "", cnpj: "", cidade: "", telefone: "", email: "" });
   
-  // --- Estados de Pedido (Nova Compra) ---
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [quantity, setQuantity] = useState("");
   const [costPrice, setCostPrice] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
 
-  // --- Estado de Notificação ---
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'warning') => {
@@ -126,7 +122,7 @@ export default function Purchases() {
       await api.post("/administrador/cadastroFornecedor", newSupplier);
       showNotification("Fornecedor cadastrado com sucesso!", "success");
       setNewSupplier({ nome: "", cnpj: "", cidade: "", telefone: "", email: "" });
-      fetchData(); // Recarrega lista
+      fetchData();
     } catch (error) {
       showNotification("Erro ao cadastrar fornecedor.", "error");
     }
@@ -167,7 +163,6 @@ export default function Purchases() {
     }
 
     try {
-      // 1. Criar Pedido (Status Entregue para atualizar estoque automaticamente no backend)
       const resOrder = await api.post("/compra", {
         id_fornecedor: Number(selectedSupplierId),
         status_pedido: "Entregue"
@@ -175,7 +170,6 @@ export default function Purchases() {
       
       const orderId = resOrder.data.id_pedido;
 
-      // 2. Adicionar Itens
       for (const item of orderItems) {
         await api.post("/compra/itens", {
           id_pedido: orderId,
@@ -185,12 +179,10 @@ export default function Purchases() {
         });
       }
 
-      // 3. Sucesso e Limpeza
       showNotification(`Compra #${orderId} realizada e estoque atualizado!`, "success");
       setOrderItems([]);
       setSelectedSupplierId("");
       
-      // Recarrega produtos para mostrar estoque atualizado
       fetchData(); 
       
     } catch (error) {
@@ -204,7 +196,6 @@ export default function Purchases() {
   return (
     <div className="min-h-screen bg-gray-50 pt-28 pb-10 px-4 sm:px-8 relative">
       
-      {/* Toast Notification */}
       {notification && (
         <Notification 
           message={notification.message} 
@@ -241,7 +232,7 @@ export default function Purchases() {
 
         {activeTab === 'suppliers' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Form de Cadastro */}
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-fit">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <Plus size={18} className="text-blue-500"/> Novo Fornecedor
@@ -256,7 +247,7 @@ export default function Purchases() {
               </div>
             </div>
 
-            {/* Lista de Fornecedores */}
+
             <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <h3 className="text-lg font-bold text-gray-800 mb-4">Fornecedores Cadastrados</h3>
               <div className="overflow-x-auto">
@@ -285,11 +276,10 @@ export default function Purchases() {
             </div>
           </div>
         ) : (
-          // --- TELA DE PEDIDOS ---
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             <div className="lg:col-span-2 space-y-6">
-              {/* Seleção e Adição */}
+
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="text-lg font-bold text-gray-800 mb-4">Montar Pedido</h3>
                 
@@ -352,7 +342,6 @@ export default function Purchases() {
                 </button>
               </div>
 
-              {/* Lista de Itens do Pedido Atual */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex justify-between">
                   Itens do Pedido
@@ -382,7 +371,6 @@ export default function Purchases() {
               </div>
             </div>
 
-            {/* Resumo e Ação */}
             <div className="h-fit space-y-6">
               <div className="bg-white p-6 rounded-xl shadow-lg border border-blue-100">
                 <h3 className="text-xl font-extrabold text-gray-800 mb-4">Resumo</h3>

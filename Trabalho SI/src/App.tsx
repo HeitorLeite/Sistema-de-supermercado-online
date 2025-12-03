@@ -10,7 +10,6 @@ import {
   Package
 } from "lucide-react";
 
-// Componentes
 import Login from "./app/modules/login/Login";
 import Register from "./app/modules/register/Register";
 import Home from "./app/modules/home/Home";
@@ -38,7 +37,6 @@ type Usuario = {
   email: string;
 };
 
-// --- Componente de Navegação ---
 function Navigation() {
   const navigate = useNavigate();
   const { totalItems } = useCart(); 
@@ -90,7 +88,6 @@ function Navigation() {
     window.location.reload();
   };
 
-  // Estilos da Navbar
   const navLinkStyle = "text-white font-medium hover:bg-white/10 transition-colors duration-200 px-3 py-2 rounded-md text-sm flex items-center gap-2 bg-transparent border-none cursor-pointer";
   const dropdownItemStyle = "block px-4 py-2 text-sm text-blue-400 hover:bg-blue-50 hover:text-blue-600 transition-colors cursor-pointer w-full text-left bg-transparent";
 
@@ -104,10 +101,8 @@ function Navigation() {
               <img src={logo} alt="Freshness" className="h-14 w-auto hover:opacity-90 transition" />
             </div>
 
-            {/* --- MENU DESKTOP --- */}
             <div className="hidden md:flex items-center space-x-1">
-              
-              {/* Dropdown Categorias */}
+            
               <div 
                 className="relative group"
                 onMouseEnter={() => setMenuCategoriasOpen(true)}
@@ -122,7 +117,6 @@ function Navigation() {
                   <ChevronDown size={14} className={`text-white transform transition-transform ${menuCategoriasOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Dropdown com pt-2 para criar a 'ponte' invisível */}
                 {menuCategoriasOpen && (
                   <div className="absolute left-0 top-full pt-2 w-56 z-50 animate-in fade-in zoom-in-95 duration-100">
                     <div className="bg-white rounded-xl shadow-2xl py-2 border border-gray-100 ring-1 ring-black ring-opacity-5">
@@ -144,7 +138,6 @@ function Navigation() {
               <Link to="/home" className={navLinkStyle}>Home</Link>
               <Link to="/buys" className={navLinkStyle}>Produtos</Link>
               
-              {/* Dropdown Admin */}
               {isAdmin && (
                 <div 
                   className="relative group"
@@ -187,7 +180,6 @@ function Navigation() {
                 </Link>
               </div>
 
-              {/* Dropdown Perfil */}
               <div 
                 className="relative ml-2"
                 onMouseEnter={() => setMenuProfileOpen(true)}
@@ -320,7 +312,6 @@ function App() {
         </CartProvider>
       </div>
 
-      {/* Footer sem borda verde superior */}
       <footer className="bg-gradient-to-br from-[#0B4878] to-[#062c4d] text-white py-12 mt-auto">
         <div className="max-w-7xl mx-auto px-6 text-center md:text-left">
           <p>© {new Date().getFullYear()} Freshness Supermercado.</p>

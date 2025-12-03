@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../../../../services/api";
 
-// Definição de tipos, adaptada para o uso no Canvas
 type Produto = {
   id_produto: number;
   nome: string;
@@ -20,8 +19,6 @@ type Promo = {
   imagem_promocao: string;
 };
 
-// using the shared api instance; we removed the local mock
-
 function Promotion() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [promos, setPromos] = useState<Promo[]>([]);
@@ -38,7 +35,7 @@ function Promotion() {
   const buscarProdutos = async () => {
     try {
       setLoading(true);
-      setErro(""); // Limpa erro anterior
+      setErro("");
       const response = await api.get("/produtos");
       const allProducts: Produto[] = response.data;
       setProdutos(allProducts);
@@ -48,7 +45,7 @@ function Promotion() {
         .map((p: Produto) => ({
           id_produto: p.id_produto,
           nome: p.nome,
-          // Garante que preco_venda é uma string para preco_promocao
+ 
           preco_promocao: String(p.preco_venda), 
           imagem_promocao: p.imagem,
         }));
@@ -77,14 +74,13 @@ function Promotion() {
         return;
       }
 
-      // Preço de venda é o novo preço de promoção
       await api.put(`/produtos/${produto.id_produto}`, {
         nome: produto.nome,
         descricao: produto.descricao,
         id_categoria: produto.id_categoria,
-        preco_venda: parseFloat(precoPromocao), // Atualiza o preço de venda para ser o de promoção
+        preco_venda: parseFloat(precoPromocao),
         estoque: produto.estoque,
-        imagem: imagemPromocao, // Atualiza a imagem para ser a de promoção (se houver)
+        imagem: imagemPromocao,
         promocao: true,
       });
 
@@ -119,11 +115,9 @@ function Promotion() {
 
       if (!produtoOriginal) return;
 
-      // NOTE: Aqui, idealmente, você reverteria o preço e a imagem para os valores ANTES da promoção.
-      // Como não temos o histórico, vamos apenas desativar a flag 'promocao' e manter o preço atual como o 'preco_venda'.
       await api.put(`/produtos/${promoId}`, {
-        ...produtoOriginal, // Mantém o estado atual (incluindo preco_venda e imagem)
-        promocao: false, // Desativa a promoção
+        ...produtoOriginal,
+        promocao: false,
       });
 
       setPromos(promos.filter((p) => p.id_produto !== promoId));
@@ -143,7 +137,6 @@ function Promotion() {
 
   return (
     <div className="mt-30 min-h-screen bg-gray-50 p-4 sm:p-10 font-sans">
-      {/* Formulário de Criação de Promoção */}
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-xl mx-auto border-t-8 border-blue-600/80 transform hover:shadow-blue-300/50 transition duration-500">
         
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6 border-b pb-3 flex items-center justify-center">
@@ -155,7 +148,6 @@ function Promotion() {
 
         <div className="space-y-4">
           
-          {/* Mantenho o vermelho para erro por convenção de UX */}
           {erro && (
             <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
               🚨 {erro}
@@ -172,7 +164,6 @@ function Promotion() {
             </div>
           ) : (
             <>
-              {/* Seleção de Produto */}
               <div className="relative">
                 <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
                   Selecione um Produto
@@ -202,7 +193,6 @@ function Promotion() {
                 </div>
               </div>
 
-              {/* Preço de Promoção */}
               <input
                 type="number"
                 value={precoPromocao}
@@ -216,7 +206,6 @@ function Promotion() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
               />
 
-              {/* URL da Imagem de Promoção */}
               <input
                 type="url"
                 value={imagemPromocao}
@@ -228,7 +217,6 @@ function Promotion() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
               />
 
-              {/* Botão de Ação: Gradiente Azul/Ciano */}
               <button
                 onClick={adicionarPromo}
                 className="w-full bg-gradient-to-r from-blue-600 to-cyan-700 text-white font-bold py-3 rounded-xl hover:from-blue-700 hover:to-cyan-800 transition duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.01]"
@@ -240,7 +228,6 @@ function Promotion() {
         </div>
       </div>
 
-      {/* Lista de Promoções Ativas */}
       <div className="mt-16 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h3 className="text-3xl font-extrabold text-gray-800 border-b-4 border-blue-500/50 pb-3 mb-8 text-center flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 mr-3 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
@@ -266,7 +253,6 @@ function Promotion() {
                 className="bg-white rounded-xl shadow-lg p-5 transition duration-300 hover:shadow-2xl hover:border-blue-500 border border-gray-100 flex flex-col space-y-4 relative overflow-hidden group"
               >
                 
-                {/* Etiqueta de Promoção em Azul */}
                 <div className="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg transform -translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                   🔥 PROMO
                 </div>
@@ -278,7 +264,7 @@ function Promotion() {
                     className="w-full h-full object-cover transition duration-500 transform group-hover:scale-105"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
-                        "https://placehold.co/400x300/e0f2f1/064e3b?text=OFF"; // Placeholder com tons de azul/ciano
+                        "https://placehold.co/400x300/e0f2f1/064e3b?text=OFF";
                       (e.target as HTMLImageElement).onerror = null; 
                     }}
                   />
@@ -294,7 +280,6 @@ function Promotion() {
                   </p>
                 </div>
 
-                {/* Botão de Encerrar Promoção com estilo Vermelho (igual ao Remover Produto) */}
                 <button
                   onClick={() => removerPromo(promo.id_produto)}
                   className="mt-4 bg-red-50 text-red-600 border border-red-200 p-3 rounded-xl text-md font-medium hover:bg-red-600 hover:text-white transition shadow-sm"

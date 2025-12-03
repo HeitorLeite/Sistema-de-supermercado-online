@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { CheckCircle, AlertCircle, X } from "lucide-react"; // Ícones para as mensagens
+import { CheckCircle, AlertCircle, X } from "lucide-react";
 import api from "../../../../services/api";
 
 type Categoria = {
@@ -17,18 +17,15 @@ type Product = {
   estoque: number;
 };
 
-// Tipo para o estado da notificação
 type NotificationType = {
   message: string;
   type: "success" | "error" | "warning";
 } | null;
 
 function ProductManagement() {
-  // --- Estados de Dados ---
   const [products, setProducts] = useState<Product[]>([]);
   const [categoriasDb, setCategoriasDb] = useState<Categoria[]>([]);
 
-  // --- Estados do Formulário ---
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [image, setImage] = useState("");
@@ -36,10 +33,8 @@ function ProductManagement() {
   const [descricao, setDescricao] = useState("");
   const [estoque, setEstoque] = useState("");
 
-  // --- Estado de UI (Notificações) ---
   const [notification, setNotification] = useState<NotificationType>(null);
 
-  // Função para mostrar notificação e limpar após 3 segundos
   const showNotification = (message: string, type: "success" | "error" | "warning") => {
     setNotification({ message, type });
     setTimeout(() => {
@@ -87,7 +82,6 @@ function ProductManagement() {
     try {
       let id_categoria: number;
 
-      // 1. Lógica de Categoria (Existente ou Nova)
       const categoriaExistente = categoriasDb.find(
         (cat) => cat.nome_categoria.toLowerCase() === categoryInput.toLowerCase()
       );
@@ -103,7 +97,6 @@ function ProductManagement() {
         setCategoriasDb([...categoriasDb, novaCategoria]);
       }
 
-      // 2. Cadastro do Produto
       await api.post("/produtos", {
         nome: title,
         descricao,
@@ -113,10 +106,8 @@ function ProductManagement() {
         imagem: image,
       });
 
-      // 3. Sucesso
       showNotification("Produto cadastrado com sucesso!", "success");
 
-      // Limpar campos
       setTitle("");
       setPrice("");
       setImage("");
@@ -124,7 +115,6 @@ function ProductManagement() {
       setEstoque("");
       setCategoryInput("");
       
-      // Recarregar lista
       const resProdutos = await api.get("/produtos");
       const produtosFormatados = resProdutos.data.map((p: any) => ({
         id_produto: p.id_produto,
@@ -144,16 +134,13 @@ function ProductManagement() {
   };
 
   const removerProduto = async (id: number) => {
-    // Confirmação de segurança
     if (!window.confirm("Tem certeza que deseja remover este produto? Essa ação não pode ser desfeita.")) {
       return;
     }
 
     try {
-      // Chama a API para deletar
       await api.delete(`/produtos/${id}`);
 
-      // Atualiza a lista visualmente removendo o item deletado
       const novaLista = products.filter((p) => p.id_produto !== id);
       setProducts(novaLista);
 
@@ -161,7 +148,6 @@ function ProductManagement() {
     } catch (error: any) {
       console.error("Erro ao remover:", error);
       
-      // Tenta pegar a mensagem de erro específica do backend (ex: erro de chave estrangeira)
       const mensagemErro = error.response?.data?.erro || "Erro ao tentar remover o produto. Verifique sua conexão.";
       
       showNotification(mensagemErro, "error");
@@ -206,7 +192,6 @@ function ProductManagement() {
         </div>
       )}
 
-      {/* --- FORMULÁRIO --- */}
       <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-xl mx-auto border-t-8 border-blue-500/80 transform hover:shadow-blue-300/50 transition duration-500">
         
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6 border-b pb-3">

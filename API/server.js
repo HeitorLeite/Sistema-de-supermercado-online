@@ -466,7 +466,6 @@ app.post("/compra/itens", async (req, res) => {
     const { id_pedido, id_produto, quantidade, preco_custo_unitario } =
       req.body;
 
-    // Transação para criar o item do pedido e aumentar o estoque
     const [novoItem] = await prisma.$transaction([
       prisma.itens_pedido.create({
         data: {
@@ -480,7 +479,7 @@ app.post("/compra/itens", async (req, res) => {
         where: { id_produto: parseInt(id_produto) },
         data: {
           estoque: {
-            increment: parseInt(quantidade), // Aumenta o estoque com a quantidade comprada
+            increment: parseInt(quantidade),
           },
         },
       }),
